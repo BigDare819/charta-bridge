@@ -1,0 +1,7 @@
+{
+  "providers": [
+    { "type": "bitmap", "file": "bridge:font/suit.png", "ascent": 9, "height": 12, "chars": ["\u2660\u2665\u2666\u2663"] },
+    { "type": "bitmap", "file": "bridge:font/nt.png", "ascent": 9, "height": 12, "chars": ["\uE000"] },
+    { "type": "reference", "id": "minecraft:default" }
+  ]
+}

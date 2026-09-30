@@ -1,0 +1,144 @@
+plugins {
+    id 'fabric-loom' version '1.11-SNAPSHOT'
+}
+
+base {
+    archivesName = "${mod_id}-fabric-${minecraft_version}"
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(java_version)
+    withSourcesJar()
+}
+
+// Both the sources and the resources carry non-ASCII text (the language files are authored in UTF-8,
+// and the javadoc uses real punctuation rather than ASCII stand-ins). javac and the resource copier
+// otherwise fall back to the platform default charset, which silently turns "有局" into mojibake on a
+// machine whose default is not UTF-8 -- including the `\uXXXX`-free comments, which is how a javadoc
+// reading "电脑" once ended up as "鐢佃剳" on disk.
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xlint:all,-processing,-this-escape']
+}
+
+tasks.named('processResources', ProcessResources) {
+    filteringCharset = 'UTF-8'
+}
+
+// Ship the licence inside the jar as well as in the repository: the jar is what most people end up
+// with, and MPL-2.0 asks for the notice to travel with the distribution.
+tasks.named('jar', Jar) {
+    from(rootProject.file('LICENSE')) {
+        rename { "LICENSE_${mod_id}" }
+        into 'META-INF'
+    }
+}
+
+repositories {
+    // Charta is installed here by `gradlew publishToMavenLocal` in the charta checkout.
+    mavenLocal()
+    mavenCentral()
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'ParchmentMC'
+                url = 'https://maven.parchmentmc.org/'
+            }
+        }
+        filter { includeGroup('org.parchmentmc.data') }
+    }
+    // Transitive deps pulled in by Charta's published POM.
+    maven {
+        name = 'BlameJared'
+        url = 'https://maven.blamejared.com'
+    }
+    maven {
+        name = "Shedaniel's Maven"
+        url = "https://maven.shedaniel.me/"
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    // Same mappings as Charta's own sources, so API signatures read identically.
+    mappings loom.layered {
+        officialMojangMappings()
+        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
+    }
+
+    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+
+    // Charta itself. Loom remaps the published intermediary jar to our mappings automatically.
+    modImplementation "dev.lucaargolo:charta-fabric-${minecraft_version}:${charta_version}"
+}
+
+loom {
+    runs {
+        client {
+            client()
+            setConfigName('Bridge Client')
+            ideConfigGenerated(true)
+            runDir('runs/client')
+            // Jump straight back into the dev world instead of the main menu; ignored when
+            // runs/client/saves/New World does not exist yet.
+            programArgs('--quickPlaySingleplayer', 'New World')
+        }
+        server {
+            server()
+            setConfigName('Bridge Server')
+            ideConfigGenerated(true)
+            runDir('runs/server')
+        }
+    }
+}
+
+processResources {
+    var expandProps = ['version'                 : version,
+                       'group'                   : project.group,
+                       'minecraft_version'       : minecraft_version,
+                       'minecraft_version_range' : minecraft_version_range,
+                       'fabric_version'          : fabric_version,
+                       'fabric_loader_version'   : fabric_loader_version,
+                       'charta_version'          : charta_version,
+                       'charta_version_range'    : charta_version_range,
+                       'mod_id'                  : mod_id,
+                       'mod_name'                : mod_name,
+                       'mod_author'              : mod_author,
+                       'mod_repo'                : mod_repo,
+                       'license'                 : license,
+                       'description'             : project.description,
+                       'java_version'            : java_version]
+
+    filesMatching(['fabric.mod.json']) {
+        expand expandProps
+    }
+    inputs.properties(expandProps)
+}
+
+// ---------------------------------------------------------------------------
+// One-shot deploy into the PCL2 instance so the jar never has to be copied by
+// hand. `gradlew build deploy`, or just `gradlew deploy` (it builds first).
+// ---------------------------------------------------------------------------
+tasks.register('deploy', Copy) {
+    group = 'bridge'
+    description = 'Builds the mod and copies it into the PCL2 1.21.1-Fabric instance.'
+    dependsOn tasks.named('build')
+
+    def instanceMods = providers.gradleProperty('pcl2ModsDir')
+            .orElse('D:/PCL2/.minecraft/versions/1.21.1-Fabric 0.19.5/mods')
+            .get()
+
+    from tasks.named('remapJar').flatMap { it.archiveFile }
+    into instanceMods
+    // Drop any stale copy of a previous name so the instance never loads two bridges.
+    doFirst { logger.lifecycle("Deploying to ${instanceMods}") }
+    doLast {
+        fileTree(instanceMods).matching { include "${mod_id}-fabric-*.jar" }.each { f ->
+            if (f.name != tasks.named('remapJar').get().archiveFile.get().asFile.name) {
+                logger.lifecycle("Removing stale ${f.name}")
+                f.delete()
+            }
+        }
+    }
+}

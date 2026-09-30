@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.bridge.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "CardSlotGeometry"
+  ],
+  "client": [
+    "CardSlotWidgetColumnStep",
+    "CardSlotWidgetHoverCost",
+    "CardSlotWidgetMetrics",
+    "GameScreenChatFrame",
+    "GameScreenFrameTick",
+    "GameScreenHoverCost",
+    "GameScreenMetrics"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
