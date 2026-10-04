@@ -18,18 +18,21 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  *
  * <p>Only ever set from the client layout; a slot that was never sized falls straight through to the
  * vanilla value. See {@link CardSlotAccess} for why the interface lives outside the mixin package.
+ *
+ * <p>The three fields are deliberately <em>not</em> {@code @Unique}: Mixin merges a non-unique field
+ * into an identically named one already on the target, which is how a sibling Charta addon with its own
+ * layout editor ends up reading and writing the same slot size. Without the merge each addon would keep
+ * a private copy and the addon whose {@code @Redirect} on the metric call lost the priority tie would
+ * see the other addon's sizes as zero.
  */
 @Mixin(CardSlot.class)
 public abstract class CardSlotGeometry implements CardSlotAccess {
 
-    @Unique
     private float bridge$width;
 
-    @Unique
     private float bridge$height;
 
     /** Marks the field as set, so a width of 0 can stay legal. */
-    @Unique
     private boolean bridge$sized;
 
     @Override
