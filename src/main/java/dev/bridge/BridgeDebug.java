@@ -45,12 +45,25 @@ public final class BridgeDebug {
      */
     private static final int SPEED = 20;
 
+    /**
+     * Boards to play before the harness stops.
+     *
+     * <p>More than one because a single deal can be lucky: a fast solve never exercises the "answer is
+     * not ready when the board ends" path, and one board never exercises the re-deal token.
+     */
+    private static final int BOARDS = 8;
+
+    /** Client ticks to sit on the finished board before dealing the next one. */
+    private static final int RESTART_DELAY = 40;
+
     @Nullable
     private static BridgeScreen screen;
     @Nullable
     private static BridgeGame game;
     private static boolean live;
     private static boolean finished;
+    private static int boards;
+    private static int restartIn;
     private static int ticks;
 
     private BridgeDebug() {
@@ -61,6 +74,9 @@ public final class BridgeDebug {
             return;
         }
         BridgeMod.LOGGER.info("Debug table enabled (BRIDGE_DEBUG_SCREEN=1)");
+        // Nobody is connected on the dev screen, so the client-side mirror has to do its own solving
+        // for the double-dummy path to run at all; see BridgeGame.solveOnClient.
+        BridgeGame.solveOnClient = true;
         ClientTickEvents.END_CLIENT_TICK.register(BridgeDebug::tick);
     }
 
@@ -71,6 +87,11 @@ public final class BridgeDebug {
         if (live) {
             // Keep stepping the local copy so the bots bid and play and the screen fills up.
             if (game != null && minecraft.screen == screen) {
+                if (restartIn > 0 && --restartIn == 0 && !finished) {
+                    // Deal the next board on the same instance, which is the same call the pass-out
+                    // path takes and the same one the table takes on a fresh game.
+                    game.startGame();
+                }
                 for (int i = 0; i < SPEED; i++) {
                     game.tick();
                 }
@@ -87,10 +108,10 @@ public final class BridgeDebug {
 
     /** One line when the board is scored, so a run can be checked without reading a chat log. */
     private static void report() {
-        if (finished || game == null || !game.isGameOver()) {
+        if (finished || game == null || !game.isGameOver() || restartIn > 0) {
             return;
         }
-        finished = true;
+        boards++;
         StringBuilder tricks = new StringBuilder();
         for (int i = 0; i < game.getPlayers().size(); i++) {
             if (i > 0) {
@@ -98,9 +119,14 @@ public final class BridgeDebug {
             }
             tricks.append(game.getTricksTaken(game.playerAt(i)));
         }
-        BridgeMod.LOGGER.info("debug: BOARD DONE contract={} declarer={} doubling={} tricks={} required={} result={} score={}",
-                game.getContract(), game.getDeclarerSeat(), game.getAuction().doubling(), tricks,
+        BridgeMod.LOGGER.info("debug: BOARD DONE {}/{} contract={} declarer={} doubling={} tricks={} required={} result={} score={}",
+                boards, BOARDS, game.getContract(), game.getDeclarerSeat(), game.getAuction().doubling(), tricks,
                 game.getRequiredTricks(), game.getResultMade(), game.getResultScore());
+        if (boards >= BOARDS) {
+            finished = true;
+            return;
+        }
+        restartIn = RESTART_DELAY;
     }
 
     /** Periodic proof that the deal, the auction, the turns and the tricks are actually running. */
@@ -141,11 +167,12 @@ public final class BridgeDebug {
         }
 
         // options: [show trick count, fill empty seats with bots, declaring side vulnerable, bot strength
-        // (0 easy / 1 normal / 2 hard)]. Positional, so the newest option goes last; a short array is
-        // still valid -- setRawOptions just leaves the missing tail at its default -- but then the debug
-        // table silently runs whatever that default is.
+        // (0 easy / 1 normal / 2 hard), double-dummy post-mortem]. Positional, so the newest option goes
+        // last; a short array is still valid -- setRawOptions just leaves the missing tail at its default
+        // -- but then the debug table silently runs whatever that default is. Double dummy is on here so
+        // the dev screen covers it; it is off by default in the real game.
         AbstractCardMenu.Definition definition = new AbstractCardMenu.Definition(
-                minecraft.player.blockPosition(), deck, ids, new byte[]{1, 1, 0, 1});
+                minecraft.player.blockPosition(), deck, ids, new byte[]{1, 1, 0, 1, 1});
 
         BridgeMenu menu = new BridgeMenu(0, minecraft.player.getInventory(), definition);
         screen = new BridgeScreen(menu, minecraft.player.getInventory(), Component.empty());

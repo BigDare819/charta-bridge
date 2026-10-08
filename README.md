@@ -67,11 +67,11 @@ Shift-click the cog on the game selection screen:
     ruff only when it holds) and bids a real system, slams included.
   * *Hard* rolls the rest of the trick out against every legal card before choosing one, and hunts
     slams and penalties in the auction.
-* **Double-dummy post-mortem** — off by default. With it on, every finished board is solved again with
-  both sides playing perfectly (as if all four hands were face up) and the answer is posted to chat for
-  everyone: how many tricks the declaring side can take double dummy, how many the contract needs, and
-  whether it should have made. The search takes a few seconds and runs off the server thread, so the
-  board still ends on time; it never changes the play.
+* **Double-dummy post-mortem** — off by default. With it on, every board is solved with both sides
+  playing perfectly (as if all four hands were face up), and the answer is posted to chat as soon as the
+  board ends: how many tricks the declaring side can take double dummy, how many the contract needs, and
+  whether it should have made. The search starts at the opening lead and runs off the server thread, so
+  the whole play is spent on it and nobody waits at the score; it never changes the play itself.
 
 ## Your own end of the table is at the bottom
 

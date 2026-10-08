@@ -165,9 +165,10 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     /**
      * Double-dummy post-mortem: solve the board with both sides playing perfectly and say so in chat.
      *
-     * <p>Off by default because the solve is a real search (see {@link #startDoubleDummy()}) and costs
-     * seconds, and because a table that just wants to play does not need a verdict on a hand it has
-     * already left. Last in the option list for the same positional reason as {@link #BOT_STRENGTH}.
+     * <p>Off by default because the solve is a real search (see {@link #beginDoubleDummy()}), it is a
+     * verdict on a hand the table has already argued about, and not every table wants one. It costs
+     * nobody any waiting though: the search runs behind the play. Last in the option list for the same
+     * positional reason as {@link #BOT_STRENGTH}.
      */
     private final GameOption.Bool DOUBLE_DUMMY = new GameOption.Bool(
             false,
@@ -186,12 +187,57 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     @Nullable
     private long[] dealtHands;
 
+    /**
+     * The solve for the board being played, started on the first lead and collected at the scoring.
+     *
+     * <p>Started as early as it can be and not when the board ends: the answer is needed at the
+     * scoring, and the whole play (thirteen tricks, with a bot thinking about most of them) is time the
+     * search can be running behind it. Started any earlier than the last bid and the trump and the
+     * opening leader are not known yet, which is the entire input beyond the deal itself.
+     */
+    @Nullable
+    private CompletableFuture<DoubleDummyAnswer> doubleDummySolve;
+
+    /**
+     * The board's contract and declarer, and the tricks it needs.
+     *
+     * <p>Fields rather than locals inside {@link #collectDoubleDummy()} because the message is written
+     * by a callback that can fire long after the scoring, when {@link #auction} and
+     * {@link #declarerSeat} may already be describing the next board.
+     */
+    private int doubleDummyRequired;
+    @Nullable
+    private Component doubleDummyContract;
+    @Nullable
+    private Component doubleDummyDeclarer;
+
+    /**
+     * A finished solve: the tricks the declaring side can take against perfect defence, and whether the
+     * search gave up before proving it.
+     *
+     * <p>Kept together in one value rather than read back off {@link BridgeDoubleDummy} after the fact,
+     * because the "am I capped" flag is a static that the <em>next</em> board's solve overwrites: reading
+     * it from the main thread after the future is handed back can pick up somebody else's search.
+     */
+    private record DoubleDummyAnswer(int tricks, boolean capped) {
+    }
+
     /** One solve at a time: {@link BridgeDoubleDummy} keeps its whole state in statics. */
     private static final ExecutorService DOUBLE_DUMMY_POOL = Executors.newSingleThreadExecutor(task -> {
         Thread thread = new Thread(task, "bridge-double-dummy");
         thread.setDaemon(true);
         return thread;
     });
+
+    /**
+     * Dev hook: let the client's mirror run the search as well.
+     *
+     * <p>In production only the logical server solves. The client mirror is ticked too and would run a
+     * second, identical search for a board it is not responsible for, and inside a singleplayer JVM the
+     * two share one static solver thread. But the dev screen ({@code BridgeDebug}) drives a purely local
+     * table with nobody connected, so without this the whole double-dummy path would never run there.
+     */
+    public static boolean solveOnClient;
 
     /** Staging pile used while dealing. Not added as a slot, so it never renders. */
     private final GameSlot dealPile = new GameSlot();
@@ -719,6 +765,12 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         resultScore = 0;
         resultMade = null;
         dealtHands = null;
+        // A board nobody has scored yet. A solve the previous board left running is not cancelled: its
+        // own callback holds everything it needs, and in production the table deals the next board on a
+        // brand new game object anyway.
+        doubleDummySolve = null;
+        doubleDummyContract = null;
+        doubleDummyDeclarer = null;
         phase = Phase.DEALING;
 
         dealerSeat = players.isEmpty() ? 0 : random.nextInt(players.size());
@@ -925,6 +977,12 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
                     ? "message.bridge.redoubled_note" : "message.bridge.doubled_note"));
         }
         table(Component.translatable("message.bridge.dummy_is", playerAt(getDummySeat()).getColoredName()));
+
+        // The contract, the trump and the opening leader are all final the instant the auction ends and
+        // not a moment before, so this is as early as the solve can possibly be kicked off. Doing it
+        // here rather than at the scoring means the search runs behind the whole play instead of in
+        // front of an audience that has already seen the last card.
+        beginDoubleDummy();
 
         // The declarer's left hand opponent leads.
         setCurrentPlayer(seatFrom(declarerSeat, 1));
@@ -1338,7 +1396,8 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
 
         table(Component.translatable("message.bridge.match_over", resultScore));
         isGameOver = true;
-        startDoubleDummy();
+        // The solve has been running since the opening lead; this is where it gets collected.
+        collectDoubleDummy();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1375,51 +1434,93 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     }
 
     /**
-     * Solves the board that was just scored, with both sides playing optimally, and posts the answer
-     * to the whole table.
+     * Kicks off the double-dummy solve for the board about to be played, on a background thread.
      *
-     * <p>Off the server thread on purpose. A full deal is between roughly one and twenty seconds of
-     * search (the solver is a plain alpha-beta, not the quick-trick machine a real double-dummy engine
-     * uses), and the board deserves its "contract made" title immediately rather than after the
-     * search. One solve at a time, because the solver keeps every scrap of its state in statics.
+     * <p>Called the moment the auction ends, not at the scoring, so the whole play is spent searching.
+     * Off the server thread on purpose: a full deal is between roughly one and twenty seconds of search
+     * (the solver is a plain alpha-beta, not the quick-trick machine a real double-dummy engine uses),
+     * and nobody should be kept from leading while it runs. One solve at a time, because the solver keeps
+     * every scrap of its state in statics.
      *
      * <p>The interesting part is that this is run on {@link #dealtHands} and not on the live hands: the
-     * deal is complete and independent of how the play actually went, which is exactly what makes it
-     * worth comparing against. Everything the message needs is captured before the future is handed
-     * off, because the table may already be dealing the next board by the time it finishes.
+     * deal is complete and independent of how the play actually goes, which is exactly what makes it
+     * worth comparing against. Everything the message needs is captured before the future is handed off,
+     * because the table may already be dealing the next board by the time it finishes.
      */
-    private void startDoubleDummy() {
-        if (!DOUBLE_DUMMY.get() || dealtHands == null || phase != Phase.RESULT) {
-            return;
-        }
-        if (declarerSeat < 0 || !auction.hasContract()) {
+    private void beginDoubleDummy() {
+        if (!DOUBLE_DUMMY.get() || dealtHands == null || declarerSeat < 0 || !auction.hasContract()) {
+            doubleDummySolve = null;
             return;
         }
         MinecraftServer server = findServer();
-        if (server == null) {
-            // The client keeps a mirror of the game; only the logical server has anyone to tell.
+        if (server == null && !solveOnClient) {
+            // The client keeps a mirror of the game and in production leaves the solving to the server.
+            doubleDummySolve = null;
             return;
         }
 
         long[] hands = dealtHands.clone();
+        // Locals for the lambda: by the time the search runs on the pool thread, this table may have
+        // moved on, and the lambda closes over the values it needs rather than over the fields.
         int trump = auction.strain();
         int leader = seatFrom(declarerSeat, 1);
         int declarerSide = (1 << declarerSeat) | (1 << seatFrom(declarerSeat, 2));
-        // Captured, not read back: by the time the search returns, this table may well be mid-deal and
-        // these fields will have moved on to the next board.
-        int required = 6 + auction.level();
-        int taken = sideTricks(declarerSeat);
-        Component contract = contractName();
-        Component declarer = playerAt(declarerSeat).getColoredName();
+        doubleDummyRequired = 6 + auction.level();
+        doubleDummyContract = contractName();
+        doubleDummyDeclarer = playerAt(declarerSeat).getColoredName();
 
-        CompletableFuture
-                .supplyAsync(() -> BridgeDoubleDummy.tricksFor(hands, trump, leader, declarerSide),
-                        DOUBLE_DUMMY_POOL)
-                .thenAccept(tricks -> {
-                    boolean approximate = BridgeDoubleDummy.lastWasCapped();
-                    server.execute(() -> announceDoubleDummy(contract, declarer, tricks, required, taken,
-                            approximate));
-                });
+        doubleDummySolve = CompletableFuture.supplyAsync(
+                () -> new DoubleDummyAnswer(BridgeDoubleDummy.tricksFor(hands, trump, leader, declarerSide),
+                        BridgeDoubleDummy.lastWasCapped()),
+                DOUBLE_DUMMY_POOL);
+    }
+
+    /**
+     * Posts the double-dummy verdict for the board that has just been scored.
+     *
+     * <p>Normally the future is already done — the play takes far longer than the search — and the
+     * message goes out in the same tick the board ends. When it is not, the answer is attached to and
+     * posted whenever it lands rather than waited for, which is the whole point of having started it
+     * early: the table never sits looking at a finished trick pile.
+     */
+    private void collectDoubleDummy() {
+        CompletableFuture<DoubleDummyAnswer> solve = doubleDummySolve;
+        if (!DOUBLE_DUMMY.get() || solve == null || doubleDummyContract == null) {
+            return;
+        }
+        MinecraftServer server = findServer();
+        if (server == null && !solveOnClient) {
+            return;
+        }
+
+        int required = doubleDummyRequired;
+        int taken = sideTricks(declarerSeat);
+        Component contract = doubleDummyContract;
+        Component declarer = doubleDummyDeclarer;
+
+        if (solve.isDone()) {
+            DoubleDummyAnswer answer = solve.getNow(null);
+            if (answer != null) {
+                announceDoubleDummy(contract, declarer, answer.tricks(), required, taken, answer.capped());
+            }
+            return;
+        }
+        solve.thenAccept(answer -> {
+            if (answer == null) {
+                return;
+            }
+            // Everything above is captured, so this reads the right board even when the table has long
+            // since moved on — which is also why it is posted rather than dropped: it is that board's
+            // verdict, and its own board is the one it describes.
+            Runnable post = () -> announceDoubleDummy(contract, declarer, answer.tricks(), required, taken,
+                    answer.capped());
+            if (server == null) {
+                // Dev screen only: a purely local table has no server thread to hop back to.
+                post.run();
+            } else {
+                server.execute(post);
+            }
+        });
     }
 
     private void announceDoubleDummy(Component contract, Component declarer, int tricks, int required,
@@ -1427,10 +1528,15 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         Component verdict = tricks >= required
                 ? Component.translatable("message.bridge.double_dummy_made")
                 : Component.translatable("message.bridge.double_dummy_down", required - tricks);
-        table(Component.translatable("message.bridge.double_dummy_result", contract, declarer, tricks,
-                required, verdict, taken,
+        Component line = Component.translatable("message.bridge.double_dummy_result", contract, declarer,
+                tricks, required, verdict, taken,
                 approximate ? Component.translatable("message.bridge.double_dummy_approximate")
-                        : Component.empty()));
+                        : Component.empty());
+        // Also to the log: the dev screen's players are not ServerPlayers, so table() writes nowhere
+        // there, and one line per board is cheap enough to keep in production.
+        dev.bridge.BridgeMod.LOGGER.info("double dummy: {} by {} -> {}/{}{}", contract.getString(),
+                declarer.getString(), tricks, required, approximate ? " (capped)" : "");
+        table(line);
     }
 
     /** The logical server behind this table, or {@code null} on the client's mirror of the game. */

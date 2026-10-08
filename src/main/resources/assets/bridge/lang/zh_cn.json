@@ -12,7 +12,7 @@
   "rule.bridge.bot_strength": "电脑强度",
   "rule.bridge.bot_strength.description": "简单：只会跟牌和按大牌点叫牌。普通：会看座位和形势出牌，叫牌有体系。困难：出牌会推演整墩，敢叫满贯。点一下切换。",
   "rule.bridge.double_dummy": "双明手",
-  "rule.bridge.double_dummy.description": "每副牌结束后，按双明手（双方都打最优）把这一副解一遍，并把双明手结果发到聊天栏。搜索要跑几秒，介意就关掉。",
+  "rule.bridge.double_dummy.description": "每副牌开打时就按双明手（双方都打最优）在后台解这一副，等这副牌打完再把双明手结果发到聊天栏。搜索藏在打牌时间里跑，不用等；实在跑不完就等它跑完再补一条。",
 
   "strength.bridge.easy": "简单",
   "strength.bridge.easy.description": "跟花色出第一张牌，叫牌只看大牌点。",
@@ -79,7 +79,7 @@
   "message.bridge.double_dummy_result": "【双明手】定约 %s 由 %s 主打：双方都打最优的话，主打方最多只能拿 %s 墩，定约需要 %s 墩——%s（本局实得 %s 墩）%s",
   "message.bridge.double_dummy_made": "双明手也能成约",
   "message.bridge.double_dummy_down": "双明手要宕 %s 墩",
-  "message.bridge.double_dummy_approximate": "（搜索没跑完，这是近似值）",
+  "message.bridge.double_dummy_approximate": "（搜索到了节点上限，这是近似值）",
 
   "editor.bridge.hint": "F9 关闭/编辑 | 拖动移动 | 滚轮缩放 | R 复位 | Ctrl+R 全部复位（config/bridge-layout.properties）",
   "editor.bridge.popup": "叫牌面板",

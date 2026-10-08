@@ -12,7 +12,7 @@
   "rule.bridge.bot_strength": "Bot strength",
   "rule.bridge.bot_strength.description": "Easy: follows suit and bids on points alone. Normal: plays to the seat and the trick, and bids a real system. Hard: rolls the trick out before playing and hunts slams. Click to cycle.",
   "rule.bridge.double_dummy": "Double-dummy post-mortem",
-  "rule.bridge.double_dummy.description": "After every board, solve it with both sides playing perfectly and post the double-dummy result to chat. The search takes a few seconds; turn it off if you would rather not wait.",
+  "rule.bridge.double_dummy.description": "Solve each board with both sides playing perfectly, in the background from the opening lead, and post the double-dummy result to chat when the board ends. The search hides behind the play, so nobody waits for it.",
 
   "strength.bridge.easy": "Easy",
   "strength.bridge.easy.description": "Plays the first card that follows suit and bids on high card points alone.",
@@ -79,7 +79,7 @@
   "message.bridge.double_dummy_result": "[double dummy] %s by %s: with both sides playing perfectly the declaring side can take at most %s tricks and the contract needs %s - %s (this board took %s)%s",
   "message.bridge.double_dummy_made": "the contract still makes",
   "message.bridge.double_dummy_down": "the contract is %s light",
-  "message.bridge.double_dummy_approximate": " (search capped, approximate)",
+  "message.bridge.double_dummy_approximate": " (hit the node cap, approximate)",
 
   "editor.bridge.hint": "F9 close/edit | drag move | scroll scale | R reset | Ctrl+R reset all (config/bridge-layout.properties)",
   "editor.bridge.popup": "Auction panel",

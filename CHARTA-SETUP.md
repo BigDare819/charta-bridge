@@ -594,10 +594,24 @@ new AutoPlayer(intelligence);                                      // shouldComp
     * **必须离开服务端线程**：一次全副解算 1~25 秒（朴素 alpha-beta，没有 DDS 那种 quick-trick 引擎），而且
       `BridgeDoubleDummy` 的**全部状态都是 static**（含 32MB 置换表），所以只能挂在**单线程**
       `ExecutorService` 上串行跑，并发两次会互相踩。跑完用 `server.execute(...)` 回到主线程再 `table(...)`。
-    * **播报要的是"捕获值"不是"活字段"**：结果回来时牌桌**多半已经在发下一副了**，而且 `isGameOver` 一置真，
-      `CardTableBlockEntity.serverTick` 下一 tick 就把 `game` 置成 null、`game.tick()` 再也不跑 —— 所以
-      "在 `tick()` 里轮询"是错的，只能靠 future 回调。`declarerSeat` / `auction` / `resultScore` 这些都在
-      提交任务前读出来交给 lambda。
+    * **播报要的是"捕获值"不是"活字段"**：结果回来时牌桌**多半已经不是这一副了**，而且 `isGameOver` 一置真，
+      `CardTableBlockEntity.serverTick` 下一 tick 就把 `game.tick()` 停掉 —— 所以"在 `tick()` 里轮询"是错的，
+      只能靠 future 回调。合同 / 庄家 / 所需墩数一律在提交任务前读出来交给 lambda，回调里不再碰活字段。
+    * **解算要在"叫牌结束"就发车，不是"打完"** ⚠️：播报时机在 `announceResult()`，但**开算时机必须在
+      `concludeAuction()`**（`phase = Phase.PLAY` 之后、首攻之前）。将牌、首攻人、庄家方位、所需墩数这四项
+      输入在叫牌结束的那一瞬间才全部确定，早于此（`beginAuction()`）将牌还是未知；而把开算放在 `announceResult()`
+      就是让全桌盯着已经摊好的牌墩干等 1~25 秒。放对了位置，搜索就藏在**整副牌的 13 墩打牌时间里**跑，
+      打完一般早就好了：`collectDoubleDummy()` 先 `isDone()` 直接同步播报，没跑完才 `thenAccept` 挂上去等它，
+      这样 `RESULT` 阶段的 80 tick 余韵也不浪费。
+    * **"晚回来的那副"不用加 token 去掐**：一开始加了 `doubleDummyToken`、晚回来的答案如果发现牌桌已经开了
+      下一副就咽掉。实测这个 token **在线上永远等于 1**：`CardTableBlock` 在 `game.isGameOver()` 之后走的是
+      `TableScreenPayload → CardTableBlockEntity.startGame()` → `type.create(...)`，也就是**每副牌都是一个新的
+      `BridgeGame` 实例**，`startGame()` 只在实例刚建好时被调一次；上一副的 future 回调持有的是它自己那份捕获值
+      和新实例无关，`players` 也是同一批实体，所以晚回来的话照样能发、也该发。只有"同一个实例自己循环开牌"的调
+      试牌桌会撞上，而那里咽掉反而丢信息。于是删掉了。
+    * **"是否被节点上限截断"要跟着答案一起回来**：`lastWasCapped()` 是 static，下一副的解算会把它覆盖掉，
+      所以不能等回调里再去读 `BridgeDoubleDummy.lastWasCapped()`（那时可能已经在跑别人的牌了），要把
+      `tricks` 和 `capped` 打包成一个 `record` 由 future 带回（`DoubleDummyAnswer`）。
     另外：`table()` 只发给 `ServerPlayer`，客户端那份镜像上 `findServer()` 为 null，所以**同一段代码在客户端
     跑等于白跑**，要拿 `findServer() == null` 直接 return；选项本身是第 5 个 `GameOption`，**只能加在末尾**
     （`setRawOptions` 按位置灌字节，坑 68/83）。
@@ -637,17 +651,26 @@ new AutoPlayer(intelligence);                                      // shouldComp
 ## 8. 变更记录
 
 - **2026-10-08 桥牌：双明手选项（默认关闭）+ 打完后把双明手结果发聊天栏**（需求「加入一个选项模式:双明手.
-  默认关闭；然后在正常对局后在聊天栏向所有玩家发送双明打结果」）。新增第 5 个游戏选项 `rule.bridge.double_dummy`
-  （默认关，加在选项列表**末尾**，坑 68/83）。打开后每副牌一结束就做一次**双明手复盘**：`rememberDeal()` 在
-  发牌刚发完时把四家手牌存成 `long` 快照（打完之后手牌是空的，只能存），`startDoubleDummy()` 把它交给
-  `BridgeDoubleDummy` 在**后台单线程**解出「双方都打最优时主打方最多能拿几墩」，回到主线程
+  默认关闭；然后在正常对局后在聊天栏向所有玩家发送双明打结果」；随后又提「不能在对局进行中解算，然后再在
+  对局结束后播报吗」）。新增第 5 个游戏选项 `rule.bridge.double_dummy`（默认关，加在选项列表**末尾**，坑
+  68/83）。打开后每副牌做一次**双明手复盘**：`rememberDeal()` 在发牌刚发完时把四家手牌存成 `long` 快照
+  （打完之后手牌是空的，只能存），`beginDoubleDummy()` 在**叫牌结束（`concludeAuction()`）那一刻**就把
+  「发牌 + 将牌 + 首攻人 + 庄家方位」交给 `BridgeDoubleDummy` 在**后台单线程**解出「双方都打最优时主打方
+  最多能拿几墩」—— 放在这里而不是 `announceResult()`，是为了让 1~25 秒的搜索藏在整副牌的 13 墩打牌时间里
+  跑，而不是让全桌盯着 80 tick 的余韵干等。  `announceResult()` 里 `collectDoubleDummy()` 取答案：`isDone()`
+  就直接同步播，没跑完才 `thenAccept` 挂上去（捕获值随回调带走，晚回来照发）。回到主线程
   `table(...)` 把结果播给全桌：「【双明手】定约 X 由 Y 主打：双方都打最优的话主打方最多只能拿 N 墩，定约需要
-  M 墩——本该成约 / 本该宕 K 墩（本局实得 Z 墩）」。解算不动牌局、不在服务端线程上、客户端镜像直接跳过，
-  全部捕获值而非活字段（坑 86）。顺带把解算器调到能用：`fill()` 的等价牌折叠按**全场还在的牌 + 当前赢墩
-  那张牌**判据重写（坑 87，原先只按自己手里相邻，漏折；中途还写歪成"只看自己手里下一张"导致答案变小），
-  killer/history 表加上又被量掉、只留 TT 命中着法提前，A 的 `ordinal()` 挪到 14。`.scratch/dd/src/Validate.java`
-  是新加的全副零和校验，`probeRules` 之外多一条 `Validate`；`exp/One`、`exp/Hard` 是这次改搜索时用的单局面
-  A/B 和最坏集计时工具。lang / 两语言说明页 / README 同步，版本 1.1.1 → 1.1.2。
+  M 墩——本该成约 / 本该宕 K 墩（本局实得 Z 墩）」，同时打一行 INFO 日志（调试牌桌上没有 ServerPlayer，
+  `table()` 写不到任何地方，日志是唯一能看见的）。`tricks` 与 `capped` 打包成 `DoubleDummyAnswer` 让
+  future 带回（`lastWasCapped()` 是 static，回调里再读会被下一副覆盖）。解算不动牌局、不在服务端线程上、
+  客户端镜像靠 `BridgeGame.solveOnClient`（只有调试牌桌打开）才跑，全部捕获值而非活字段（坑 86）。
+  调试牌桌顺手改成**连打 8 副**（`BridgeDebug.BOARDS`，每副间隔 40 tick）并在选项里**打开双明手**，
+  这样"解算没跑完就走异步"和"同一实例再发牌"两条路都能被跑到。顺带把解算器调到能用：`fill()` 的等价牌折叠按**全场还在
+  的牌 + 当前赢墩那张牌**判据重写（坑 87，原先只按自己手里相邻，漏折；中途还写歪成"只看自己手里下一张"
+  导致答案变小），killer/history 表加上又被量掉、只留 TT 命中着法提前，A 的 `ordinal()` 挪到 14。
+  `.scratch/dd/src/Validate.java` 是新加的全副零和校验（4 副 × 5 将牌 × 4 首攻 = 80 项 bad=0），`exp/One`、
+  `exp/Hard` 是这次改搜索时用的单局面 A/B 和最坏集计时工具。lang / 两语言说明页 / README 同步，
+  版本 1.1.1 → 1.1.2。
 
 - **2026-10-05 桥牌：修掉"不是我叫的庄却是我主打、队友明手"**（反馈「修一下明明不是我叫的庄，但是是我
   主打，队友明手的 bug」）。根因是**叫牌座位可以记错位**（坑 85）：`Auction.call` 不校验说话座位，回调里
