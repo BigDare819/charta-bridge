@@ -88,7 +88,11 @@ Remove-Item -Recurse -Force D:\deepseekharness\charta-BigA\runs
 两个工程的 `deploy` 默认落到 `D:/PCL2/.minecraft/versions/1.21.1-Fabric 0.19.5/mods`，
 可用 `-Ppcl2ModsDir=...` 覆盖。`deploy` 会先删掉同前缀旧 jar，所以**别手工 copy**——
 新旧名字交替时容易留两份，游戏会同时加载（坑 7、坑 20）。
-**换成原子改名而不是原地覆盖**，因为"游戏正在跑/正在启动时部署"会把 jar 写坏（坑 90）。
+**换掉了原地覆盖**：优先原子改名（`xxx.jar.staged` → `ATOMIC_MOVE`），改名被拒（游戏正持有 jar）时
+退化到流式原地写并 warn。原地覆盖之所以会写坏正在运行的游戏，机理见坑 90。
+
+**另一个前提**：`deploy` 之后建议重启游戏。游戏在跑时部署走的是兜底原地写，磁盘上是对的，
+但已加载的类不会热替换。
 
 ---
 
@@ -614,8 +618,8 @@ new AutoPlayer(intelligence);                                      // shouldComp
       所以不能等回调里再去读 `BridgeDoubleDummy.lastWasCapped()`（那时可能已经在跑别人的牌了），要把
       `tricks` 和 `capped` 打包成一个 `record` 由 future 带回（`DoubleDummyAnswer`）。
     另外：`table()` 只发给 `ServerPlayer`，客户端那份镜像上 `findServer()` 为 null，所以**同一段代码在客户端
-    跑等于白跑**，要拿 `findServer() == null` 直接 return；选项本身是第 5 个 `GameOption`，**只能加在末尾**
-    （`setRawOptions` 按位置灌字节，坑 68/83）。
+    跑等于白跑**，要拿 `findServer() == null` 直接 return。（双明手后来**连选项都取消了**，见坑 91：无论如何
+    都会播报，于是"第 5 个 `GameOption`"这个说法也一起没了，现在最后一个是 `BOT_STRENGTH`。）
 
 87. **解算器的"对不对"只有一个判据：a + b == 13** ⚠️ — 同一局面下双方的最优墩数之和必然等于剩余墩数，这是
     零和，也是最省事的自检：任何一处偷偷剪掉了最优线要用的着法，都会以"和不是 13"暴露出来，而不是表现为
@@ -701,11 +705,56 @@ new AutoPlayer(intelligence);                                      // shouldComp
     * **修法**：拷到同目录的 `xxx.jar.staged`，再 `Files.move(..., REPLACE_EXISTING, ATOMIC_MOVE)`
       （失败退化到普通 move）。改名是瞬间的，读方要么看到旧 inode 要么看到新 inode，永远看不到半个文件；
       `.staged` 后缀不会被 loader 当 mod 扫到。`charta-bridge` 和 `MyAvalon` 的 `deploy` 都按这个写法。
+    * **游戏正在跑的时候，改名也会失败** —— 别以为原子改名就万事大吉。Windows 上目标文件被进程持有句柄时，
+      `move(ATOMIC_MOVE)` 抛 `AccessDeniedException`，**紧接着 `Files.copy(REPLACE_EXISTING)` 也抛
+      `FileSystemException: 另一个程序正在使用此文件`**：因为 `Files.copy` 的 `REPLACE_EXISTING` 内部是
+      「先 `DeleteFile` 再 `CreateFile`」，而句柄没带 `FILE_SHARE_DELETE` 时删不掉。
+      唯一能穿过的是**打开已存在的文件句柄做截断写**（`CREATE_ALWAYS` 语义，不删文件）：
+      ```groovy
+      try (InputStream in = Files.newInputStream(staged.toPath());
+           OutputStream out = Files.newOutputStream(dst.toPath(), WRITE, TRUNCATE_EXISTING)) {
+          in.transferTo(out)
+      }
+      ```
+      所以 `deploy` 是「原子改名成功最好；`IOException` 就退化到流式原地写」，并打三行 warn 提示
+      「本次构建要重启游戏才保证加载到」。`.scratch/LockTest.java` 是当时的探测程序，三种策略的
+      成功/失败边界就是在活锁文件上量出来的（A 原子改名 FAIL、B 流式原地写 OK 且内容一致、
+      C `Files.copy` FAIL）。原地写**不是原子的**，中途被打断会留下半个 jar —— 但那只影响重启后的加载，
+      对已在跑的进程无害，而且 `.staged` 在成功前不删，可当备份。
     * **排查入口**：先 `unzip -t *.jar` 扫一遍 mods 目录（本目录 6 个 jar 全量扫一遍只要一秒），
       `BAD`/`No errors detected` 一眼分明；再看 `mods/*.jar` 的 **mtime 是否落在崩溃时间附近** —— 那是铁证。
       注意 `unzip -t` 在**部署完成之后**跑必然是 OK 的，所以"现在测得没问题"不能否掉这个诊断。
 
+91. **选项从末尾删是安全的（`setRawOptions` 长度容错），"能开能关但开关无效"就该删** — 需求是「不论开不开
+    双明手，都要在对局结束后展示双明手结果」，那就没有开关存在的理由了：`DOUBLE_DUMMY` 这个 `GameOption`
+    整个删掉，`beginDoubleDummy()`/`collectDoubleDummy()` 里的 `!DOUBLE_DUMMY.get() ||` 也跟着删。
+    * **老存档不会错位**：`Game.setRawOptions` 是
+      `for (i = 0; i < getOptions().size(); i++) if (i < options.length) o.get(i).setValue(options[i]);`
+      —— 长度不等直接由 `i < options.length` 兜住：老存档的 5 字节喂给 4 个选项，第 5 个字节没人读；
+      反过来短数组喂长列表则尾部保持默认。所以规矩只有一条：**加只能加末尾，删只能删末尾**（坑 68/83）。
+    * 语言键 `rule.bridge.double_dummy{,.description}` 一并删；`message.bridge.double_dummy_*` 是播报文案本身，
+      留着。`BridgeDebug` 的 `new byte[]{1,1,0,1,1}` 也要跟着缩成 4 个 —— 短数组的尾部默认值是"静默生效"的，
+      忘了缩不会报错，只会让调试牌桌跑在与线上不同的设置上。
+
 ## 8. 变更记录
+
+- **2026-10-08 `deploy` 兜底：游戏在跑时原子改名也会被拒，改为退化到流式原地写**。上一轮的原子改名在
+  「游戏未运行」时完全够用，但游戏一旦持有 jar 句柄，Windows 上 `move(ATOMIC_MOVE)` 抛
+  `AccessDeniedException`，且 `Files.copy(REPLACE_EXISTING)` 也跟着抛 `FileSystemException`（它内部是
+  先删后建，删不掉被持有的文件）。在活锁文件上用 `.scratch/LockTest.java` 量了三种策略：原子改名 FAIL、
+  `Files.copy` FAIL、**只有 `Files.newOutputStream(..., WRITE, TRUNCATE_EXISTING)` 流式原地写成功且
+  内容逐字节一致**。两个工程的 `deploy` 都加上 `catch (IOException)` 分支走流式原地写并 warn 三行
+  （"要重启游戏才保证加载到"）。实测：游戏运行中 `./gradlew deploy` 成功、产物与 `build/libs` 的 jar
+  `cmp` 逐字节相同、`unzip -t` 无错、无残留 `.staged`（坑 90）。
+
+- **2026-10-08 桥牌：双明手复盘改为无条件播报，选项随之删除**（需求「不论开不开双明手，都要在对局结束后
+  展示双明手结果」）。原先这一切挂在第 5 个游戏选项 `rule.bridge.double_dummy`（默认关）上，现在
+  `beginDoubleDummy()` 在叫牌结束那刻无条件发车、`collectDoubleDummy()` 在 `announceResult()` 结尾无条件
+  取答案播报，`DOUBLE_DUMMY` 这个 `GameOption` 整个删掉（"能开能关但开关无效"就是死开关，坑 91）。
+  `getOptions()` 回到 4 项、`BridgeDebug` 的 options 数组缩成 `{1,1,0,1}`、两个语言文件删掉
+  `rule.bridge.double_dummy{,.description}`（播报用的 `message.bridge.double_dummy_*` 保留），README 与两份
+  说明页把这一条从"选项"挪成"每副牌都会做、没有开关"。老存档的 5 字节选项数组由 `setRawOptions` 的
+  `i < options.length` 兜住，不会错位。玩法与播报文案零改动。
 
 - **2026-10-08 修复：`deploy` 原地覆盖 jar 会把正在运行的游戏写崩**（反馈「直接崩溃了」）。崩溃报告头是
   bridge 的入口点，但 `Caused by` 是 `ZipException: ZipFile invalid LOC header (bad signature)`、且报的是

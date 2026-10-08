@@ -122,14 +122,21 @@ processResources {
 // One-shot deploy into the PCL2 instance so the jar never has to be copied by
 // hand. `gradlew build deploy`, or just `gradlew deploy` (it builds first).
 //
-// The swap is atomic (stage next to the target, then move it into place) rather
-// than a plain overwrite, because a plain overwrite is not safe against a game
-// that is already running or starting: `ZipFile` caches the archive's central
-// directory when it opens the jar, so truncating-and-rewriting the file under a
-// live loader leaves every later class read with
-// "ZipException: invalid LOC header (bad signature)" -- which surfaces as a
-// crash inside whichever addon's entrypoint happens to touch that jar first, not
-// as a crash in the jar that was rewritten. See CHARTA-SETUP.md pitfall 90.
+// Two-step on purpose. Stage next to the target, then rename it into place: the
+// rename is instant, so a game that is starting up never opens a half-written
+// jar. A plain overwrite is *not* safe there -- ZipFile caches the archive's
+// central directory when it opens a jar, so rewriting the bytes underneath a
+// live loader leaves every later class read with "ZipException: invalid LOC
+// header", which surfaces as a crash in whichever addon's entrypoint touches
+// that jar first. See CHARTA-SETUP.md pitfall 90.
+//
+// The rename needs the destination to be replaceable, and Windows refuses that
+// while another process holds the file open -- and a running Minecraft holds
+// every mod jar open for its whole life. That is not an error worth failing the
+// build over: the running game has to be restarted to pick up new code anyway,
+// so fall back to writing the bytes in place (which Windows does allow) and say
+// so. Restarting the game then gives the new jar; the only cost of the fallback
+// is that the session that was already running may misbehave until it restarts.
 // ---------------------------------------------------------------------------
 tasks.register('deploy') {
     group = 'bridge'
@@ -156,6 +163,20 @@ tasks.register('deploy') {
         } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
             java.nio.file.Files.move(staged.toPath(), dst.toPath(),
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        } catch (java.io.IOException e) {
+            // The game holds the jar open. Windows then refuses both the rename and the
+            // delete-then-create that Files.copy(REPLACE_EXISTING) performs internally, but it
+            // does allow truncating the *existing* file handle. So copy stream-to-stream.
+            logger.warn("Could not rename ${dst.name} (${e.class.simpleName}: ${e.message})")
+            logger.warn("The game is probably running and holding the jar open; writing it in place instead.")
+            logger.warn("That is safe on disk, but restart the game to be sure of loading this build.")
+            try (java.io.InputStream in = java.nio.file.Files.newInputStream(staged.toPath());
+                 java.io.OutputStream out = java.nio.file.Files.newOutputStream(dst.toPath(),
+                         java.nio.file.StandardOpenOption.WRITE,
+                         java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
+                in.transferTo(out)
+            }
+            java.nio.file.Files.deleteIfExists(staged.toPath())
         }
         logger.lifecycle("Deployed ${src.name} to ${dir}")
         // Drop any stale copy of a previous name so the instance never loads two bridges.
