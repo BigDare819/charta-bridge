@@ -30,14 +30,30 @@ public final class BridgeDoubleDummy {
      *
      * <p>The default is set from what a real deal costs, not from a round number: four deals times every
      * strain times every leader is eighty ordinary solves, and the worst single position seen needed
-     * about 89M nodes and twenty seconds. A capped solve is not merely imprecise, it breaks the a+b=13
+     * about 44M nodes and nine seconds. A capped solve is not merely imprecise, it breaks the a+b=13
      * invariant, so the cap has to clear the tail rather than the average, with room for a machine a
      * good deal slower than the one measured on. {@link #lastWasCapped()} is what lets a caller say
      * "approximate" instead of quietly reporting a wrong number.
      */
     private static final long NODE_CAP = Long.getLong("dd.cap", 150_000_000L);
 
-    private static final int TABLE_BITS = Integer.getInteger("dd.ttbits", 21);
+    /**
+     * Transposition table size, as a power of two of slots. 2^24 is 256 MB.
+     *
+     * <p>Much larger than it looks like it needs to be, and deliberately so — this is the single
+     * biggest lever on the solver. The search visits tens of millions of positions, each a fresh random
+     * probe into the table, so the table is never in cache and every probe is a main-memory round trip;
+     * and every collision does not just cost a slow probe, it throws away a whole subtree, so a table
+     * that is too small costs nodes *and* time. Measured on the worst position: 2^21 (32 MB) takes
+     * 14.9 s over 89M nodes, 2^23 (128 MB) 7.6 s over 42M, 2^24 (256 MB) 3.9 s over 20M, and 2^25 and
+     * beyond buy nothing further — 2^24 is the knee, and the smaller tables are not just slower but
+     * lose the a+b=13 invariant outright if the node cap is reached before the thrash lets them
+     * converge.
+     *
+     * <p>Allocated once, on the first solve, because the class is only touched at all when the
+     * double-dummy option is on: a table that is off pays nothing for it.
+     */
+    private static final int TABLE_BITS = Integer.getInteger("dd.ttbits", 24);
     private static final int TABLE_SIZE = 1 << TABLE_BITS;
     private static final int TABLE_MASK = TABLE_SIZE - 1;
     private static final int MAX_PROBE = 8;
@@ -49,8 +65,16 @@ public final class BridgeDoubleDummy {
     /** Allocation-free legal-move buffer, one slot per ply. */
     private static final int[][] MOVES = new int[MAX_PLY][MAX_MOVES];
 
-    private static final long[] TABLE_KEY = new long[TABLE_SIZE];
-    private static final long[] TABLE_VALUE = new long[TABLE_SIZE];
+    /**
+     * Transposition table, {@code [key, meta]} pairs in one array.
+     *
+     * <p>Interleaved rather than two parallel arrays on purpose: the table is orders of magnitude past
+     * any cache, so every probe is a memory access, and with two arrays a probe reads two unrelated
+     * cache lines for one entry. Interleaved, the key and its value sit in the same one, which is also
+     * why {@link #MAX_PROBE} is a handful of slots and not a longer chain: a walk of eight adjacent
+     * slots still lands in one or two lines.
+     */
+    private static final long[] TABLE = new long[TABLE_SIZE * 2];
 
     private static final int[] CARDS = new int[52];
 
@@ -159,6 +183,9 @@ public final class BridgeDoubleDummy {
 
     private static int solve(long[] hands, int trump, int leader, int sideMask) {
         prepare(hands, trump, sideMask);
+        if (CANONICAL) {
+            seedPattern();
+        }
 
         nodeCount = 0L;
         capped = false;
@@ -228,11 +255,14 @@ public final class BridgeDoubleDummy {
         }
 
         // Computed once per node and handed to both the probe and the store: the hands are put back
-        // before the store runs, so the reduced pattern is the same one.
-        long canon = CANONICAL ? canonicalPattern() : 0L;
+        // before the store runs, so the reduced pattern is the same one. The key is built here too
+        // rather than inside each of them — it is the same key twice, and building it is a bit scan
+        // plus a mix, which is real work at this node count.
+        long canon = CANONICAL ? patternHash(ply) : 0L;
+        long key = NO_TT ? 0L : keyOf(canon, ply, seat, leadSuit, winCard, winSeat, banked);
         int ttMove = -1;
         if (!NO_TT) {
-            if (lookup(canon, ply, seat, leadSuit, winCard, winSeat, banked, alpha, beta)) {
+            if (lookup(key, alpha, beta)) {
                 ttHits++;
                 return ttValue;
             }
@@ -241,11 +271,11 @@ public final class BridgeDoubleDummy {
         ttMisses++;
 
         if (win[0] >= beta) {
-            store(canon, ply, seat, leadSuit, winCard, winSeat, banked, win[0], LOWER, ttMove);
+            store(key, win[0], LOWER, ttMove);
             return win[0];
         }
         if (win[1] <= alpha) {
-            store(canon, ply, seat, leadSuit, winCard, winSeat, banked, win[1], UPPER, ttMove);
+            store(key, win[1], UPPER, ttMove);
             return win[1];
         }
         // Tighten the window with what is already proved about this position. Both numbers are sound
@@ -285,6 +315,9 @@ public final class BridgeDoubleDummy {
                 nWinCard = card;
                 nWinSeat = seat;
             }
+            if (CANONICAL) {
+                pushPattern(ply, card);
+            }
 
             int value;
             if (ply % 4 == 3) {
@@ -323,7 +356,7 @@ public final class BridgeDoubleDummy {
         } else {
             flag = best <= alphaOrig ? UPPER : best >= betaOrig ? LOWER : EXACT;
         }
-        store(canon, ply, seat, leadSuit, winCard, winSeat, banked, best, flag, bestMove);
+        store(key, best, flag, bestMove);
         return best;
     }
 
@@ -548,7 +581,8 @@ public final class BridgeDoubleDummy {
      * well. Hands that have already played are done with this trick and are judged only against the
      * trumps still in their opponents' hands.
      */
-    private static int topTrumps(long mine, long theirs, int ply, int seat, int winCard) {
+    private static int topTrumps(long theirs, int ply, int seat, int winCard,
+                                 int[] seats, int seatCount) {
         if (!hasTrumpSuit()) return 0;
         long theirTrumps = theirs & suitMask(trumpSuit);
         long floor = theirTrumps == 0L ? 0L
@@ -557,9 +591,9 @@ public final class BridgeDoubleDummy {
         int played = ply & 3;
         int trickLeader = (seat - played) & 3;
         int best = 0;
-        for (int s = 0; s < 4; s++) {
+        for (int i = 0; i < seatCount; i++) {
+            int s = seats[i];
             long hand = handOf(s);
-            if ((mine & hand) != hand) continue;
             long bar = floor;
             if (liveWinner != 0L && ((s - trickLeader) & 3) >= played) {
                 bar = Math.max(bar, (liveWinner << 1) - 1L);
@@ -579,12 +613,26 @@ public final class BridgeDoubleDummy {
     /** For each seat, the other seat on its side. Which seats pair up is the side mask's decision. */
     private static final int[] PARTNER = new int[4];
 
+    /** Seats on the maximiser's side, then on the other. Fixed for the whole solve. */
+    private static final int[] MINE_SEATS = new int[4];
+    private static final int[] THEIR_SEATS = new int[4];
+    private static int mineSeats;
+    private static int theirSeats;
+
     private static void pairUp() {
         for (int s = 0; s < 4; s++) {
             PARTNER[s] = -1;
             for (int t = 0; t < 4; t++) {
                 if (t != s && sideBit(t) == sideBit(s)) PARTNER[s] = t;
             }
+        }
+        // The two masks are needed at every node, so the "which seats are mine" question is answered
+        // once here rather than by re-testing the side bit for all four seats on both every node.
+        mineSeats = 0;
+        theirSeats = 0;
+        for (int s = 0; s < 4; s++) {
+            if (sideBit(s)) MINE_SEATS[mineSeats++] = s;
+            else THEIR_SEATS[theirSeats++] = s;
         }
     }
 
@@ -674,8 +722,8 @@ public final class BridgeDoubleDummy {
      * </ul>
      */
     private static int lowerBound(long mine, long theirs, int ply, int seat, int winCard,
-                                  boolean onLead, int remaining) {
-        int certain = topTrumps(mine, theirs, ply, seat, winCard);
+                                  boolean onLead, int remaining, int[] seats, int seatCount) {
+        int certain = topTrumps(theirs, ply, seat, winCard, seats, seatCount);
         if (onLead) {
             int cashed = cashOut(seat, remaining);
             long leader = handOf(seat);
@@ -711,8 +759,10 @@ public final class BridgeDoubleDummy {
         boolean clear = leadSuit < 0;
         boolean ourLead = clear && sideBit(seat);
         boolean theirLead = clear && !sideBit(seat);
-        int lo = banked + lowerBound(mine, theirs, ply, seat, winCard, ourLead, remaining);
-        int hi = banked + remaining - lowerBound(theirs, mine, ply, seat, winCard, theirLead, remaining);
+        int lo = banked + lowerBound(mine, theirs, ply, seat, winCard, ourLead, remaining,
+                MINE_SEATS, mineSeats);
+        int hi = banked + remaining - lowerBound(theirs, mine, ply, seat, winCard, theirLead, remaining,
+                THEIR_SEATS, theirSeats);
         if (hi < lo) hi = lo;
         MAT_W[0] = Math.max(0, Math.min(lo, maxTricks));
         MAT_W[1] = Math.max(MAT_W[0], Math.min(hi, maxTricks));
@@ -721,17 +771,13 @@ public final class BridgeDoubleDummy {
 
     private static long mineMask() {
         long mine = 0L;
-        for (int s = 0; s < 4; s++) {
-            if (sideBit(s)) mine |= handOf(s);
-        }
+        for (int i = 0; i < mineSeats; i++) mine |= handOf(MINE_SEATS[i]);
         return mine;
     }
 
     private static long theirsMask() {
         long theirs = 0L;
-        for (int s = 0; s < 4; s++) {
-            if (!sideBit(s)) theirs |= handOf(s);
-        }
+        for (int i = 0; i < theirSeats; i++) theirs |= handOf(THEIR_SEATS[i]);
         return theirs;
     }
 
@@ -739,32 +785,78 @@ public final class BridgeDoubleDummy {
 
     /**
      * The hands reduced to what actually decides a trick: for every suit, which hand holds the first,
-     * second, ... highest remaining card.
+     * second, ... highest remaining card, as one 4-bit owner code per still-held card, lowest first.
      *
      * <p>Absolute ranks do not matter here. A six and a seven are the same card when nothing between
      * them is left, because every rule in the game compares two cards and nothing else. Two positions
      * that differ only in which ranks were spent are therefore the same position, and folding them
      * together is what keeps the table useful: without it the same shape is stored once per pair of
-     * discarded spots and the table thrashes.
+     * discarded spots and the table thrashes badly — measured, the worst deal goes from 89M nodes to
+     * past 400M and never finishes.
+     *
+     * <p>Kept as a stack of per-ply patterns built a card at a time rather than recomputed from the
+     * hands at every node. Playing a card changes exactly one suit and does exactly one thing to that
+     * suit's pattern — it deletes one code and slides the rest down — so a child's pattern costs one
+     * bit count and one shift, against a walk over every card still in play for computing it afresh.
+     * The mixing is bit-for-bit the same either way, so the table sees identical keys.
      */
-    private static long canonicalPattern() {
-        long h = 0x243F6A8885A308D3L;
+    private static final long[] PATTERN = new long[MAX_PLY * 4];
+    private static final int[] PATTERN_N = new int[MAX_PLY * 4];
+
+    private static int ownerOf(int card) {
+        return (int) ((hand0 >>> card) & 1L)
+                | (int) ((hand1 >>> card) & 1L) << 1
+                | (int) ((hand2 >>> card) & 1L) << 2
+                | (int) ((hand3 >>> card) & 1L) << 3;
+    }
+
+    /** Builds the root's four suit patterns. Once per solve; children extend it with {@link #pushPattern}. */
+    private static void seedPattern() {
         for (int s = 0; s < 4; s++) {
-            long union = (hand0 | hand1 | hand2 | hand3) & (0x1FFFL << (13 * s));
             long pattern = 0L;
-            int i = 0;
-            long m = union;
+            int n = 0;
+            long m = (hand0 | hand1 | hand2 | hand3) & suitMask(s);
             while (m != 0L) {
                 int c = Long.numberOfTrailingZeros(m);
                 m &= m - 1;
-                int owner = ((int) ((hand0 >>> c) & 1L))
-                        | ((int) ((hand1 >>> c) & 1L) << 1)
-                        | ((int) ((hand2 >>> c) & 1L) << 2)
-                        | ((int) ((hand3 >>> c) & 1L) << 3);
-                pattern |= ((long) owner) << (i << 2);
-                i++;
+                pattern |= (long) ownerOf(c) << (n << 2);
+                n++;
             }
-            h = (h ^ pattern) * 0x100000001B3L + (s << 8) + i;
+            PATTERN[s] = pattern;
+            PATTERN_N[s] = n;
+        }
+    }
+
+    /**
+     * Writes the child's pattern at {@code ply + 1} after {@code card} has left its hand, so the child
+     * node can read it without looking at the hands at all.
+     *
+     * <p>Must be called after the card is removed from the hand: the card's index among the cards of
+     * its suit that are still in play is what says which code to delete.
+     */
+    private static void pushPattern(int ply, int card) {
+        int s = card / 13;
+        int src = ply << 2;
+        int dst = (ply + 1) << 2;
+        for (int o = 0; o < 4; o++) {
+            if (o == s) continue;
+            PATTERN[dst + o] = PATTERN[src + o];
+            PATTERN_N[dst + o] = PATTERN_N[src + o];
+        }
+        long union = (hand0 | hand1 | hand2 | hand3) & suitMask(s);
+        // Bits below the card in the global mask, which is the same as counting the suit's cards below
+        // it because the mask is already sliced to this suit.
+        int idx = Long.bitCount(union & ((1L << card) - 1));
+        long pat = PATTERN[src + s];
+        PATTERN[dst + s] = (pat & ((1L << (idx << 2)) - 1)) | ((pat >>> ((idx + 1) << 2)) << (idx << 2));
+        PATTERN_N[dst + s] = PATTERN_N[src + s] - 1;
+    }
+
+    private static long patternHash(int ply) {
+        int base = ply << 2;
+        long h = 0x243F6A8885A308D3L;
+        for (int s = 0; s < 4; s++) {
+            h = (h ^ PATTERN[base + s]) * 0x100000001B3L + (s << 8) + PATTERN_N[base + s];
         }
         return h * 0x9E3779B97F4A7C15L;
     }
@@ -788,15 +880,17 @@ public final class BridgeDoubleDummy {
             k ^= hand2 * 0x165667B19E3779F9L;
             k ^= hand3 * 0x27D4EB2F165667C5L;
         }
-        long winning = (winCard + 1) & 0x3FL;
+        long winning = 0L;
         long trumpWinner = 0L;
         if (winCard >= 0) {
-            boolean wTrump = winCard / 13 == trumpSuit;
             if (CANONICAL) {
-                long union = (hand0 | hand1 | hand2 | hand3) & (0x1FFFL << (13 * (winCard / 13)));
-                winning = 1 + Long.bitCount(union & ((1L << winCard) - 1));
+                long below = (hand0 | hand1 | hand2 | hand3) & suitMask(winCard / 13)
+                        & ((1L << winCard) - 1);
+                winning = Long.bitCount(below) + 1L;
+            } else {
+                winning = (winCard + 1) & 0x3FL;
             }
-            trumpWinner = wTrump ? 1L : 0L;
+            trumpWinner = winCard / 13 == trumpSuit ? 1L : 0L;
         }
         k ^= ((long) (banked & 31)) << 4;
         k ^= ((long) seat & 3L) << 9;
@@ -828,17 +922,15 @@ public final class BridgeDoubleDummy {
      * Looks the position up. A hit is usable when it is exact, or when it is a bound that already
      * settles the window; a hit that is neither is reported as a miss.
      */
-    private static boolean lookup(long canon, int ply, int seat, int leadSuit, int winCard,
-                                  int winSeat, int banked, int alpha, int beta) {
+    private static boolean lookup(long key, int alpha, int beta) {
         ttMoveCard = -1;
-        long key = keyOf(canon, ply, seat, leadSuit, winCard, winSeat, banked);
         int start = probe(key);
         for (int p = 0; p < MAX_PROBE; p++) {
-            int i = (start + p) & TABLE_MASK;
-            long k = TABLE_KEY[i];
+            int i = ((start + p) & TABLE_MASK) << 1;
+            long k = TABLE[i];
             if (k == 0L) return false;
             if (k != key) continue;
-            long entry = TABLE_VALUE[i];
+            long entry = TABLE[i + 1];
             if ((entry & 0xFFFFL) != (generation & 0xFFFFL)) return false;
             int move = (int) ((entry >>> 24) & 0x3FL);
             ttMoveCard = move == 0x3FL ? -1 : move;
@@ -855,23 +947,22 @@ public final class BridgeDoubleDummy {
         return false;
     }
 
-    private static void store(long canon, int ply, int seat, int leadSuit, int winCard,
-                              int winSeat, int banked, int value, int flag, int bestMove) {
+    private static void store(long key, int value, int flag, int bestMove) {
         if (value < 0 || value > 13) return;
-        long key = keyOf(canon, ply, seat, leadSuit, winCard, winSeat, banked);
         int start = probe(key);
         long meta = (generation & 0xFFFFL) | ((long) (flag & 3) << 16) | ((long) (value & 0x3F) << 18)
                 | ((long) (bestMove < 0 ? 0x3F : bestMove) << 24);
         for (int p = 0; p < MAX_PROBE; p++) {
-            int i = (start + p) & TABLE_MASK;
-            long k = TABLE_KEY[i];
-            if (k == 0L || k == key || (TABLE_VALUE[i] & 0xFFFFL) != (generation & 0xFFFFL)) {
-                TABLE_KEY[i] = key;
-                TABLE_VALUE[i] = meta;
+            int i = ((start + p) & TABLE_MASK) << 1;
+            long k = TABLE[i];
+            if (k == 0L || k == key || (TABLE[i + 1] & 0xFFFFL) != (generation & 0xFFFFL)) {
+                TABLE[i] = key;
+                TABLE[i + 1] = meta;
                 return;
             }
         }
-        TABLE_KEY[start] = key;
-        TABLE_VALUE[start] = meta;
+        int i = start << 1;
+        TABLE[i] = key;
+        TABLE[i + 1] = meta;
     }
 }

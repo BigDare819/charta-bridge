@@ -17,6 +17,10 @@ import org.jetbrains.annotations.Nullable;
  * client is in a world. It exists because reaching the real thing by hand needs a deck, a cloth, a
  * multi-block table and four occupied chairs before the table screen even opens.
  *
+ * <p>The world itself is opened too ({@link #WORLD}, joined from the title screen), so the harness runs
+ * unattended from a cold start: {@code --quickPlaySingleplayer} only fires when the level already
+ * exists, and a run that quietly stops on the title screen looks exactly like a run that crashed.
+ *
  * <p>Enabled with the {@code BRIDGE_DEBUG_SCREEN=1} environment variable:
  *
  * <pre>cd D:\deepseekharness\charta-bridge
@@ -56,12 +60,26 @@ public final class BridgeDebug {
     /** Client ticks to sit on the finished board before dealing the next one. */
     private static final int RESTART_DELAY = 40;
 
+    /**
+     * Dev world the harness joins, as a folder under {@code runs/client/saves}.
+     *
+     * <p>Kept in step with the {@code --quickPlaySingleplayer} argument in {@code build.gradle}: the
+     * world is opened from here as well because that argument only takes effect when the level exists,
+     * and a harness that sits on the title screen doing nothing is indistinguishable from a broken one.
+     */
+    private static final String WORLD = "New";
+
+    /** Client ticks to wait for the boot reload to finish before opening {@link #WORLD}. */
+    private static final int JOIN_DELAY = 100;
+
     @Nullable
     private static BridgeScreen screen;
     @Nullable
     private static BridgeGame game;
     private static boolean live;
     private static boolean finished;
+    private static boolean joined;
+    private static int idleTicks;
     private static int boards;
     private static int restartIn;
     private static int ticks;
@@ -82,6 +100,7 @@ public final class BridgeDebug {
 
     private static void tick(Minecraft minecraft) {
         if (minecraft.player == null || minecraft.level == null) {
+            joinWorld(minecraft);
             return;
         }
         if (live) {
@@ -104,6 +123,33 @@ public final class BridgeDebug {
             return;
         }
         open(minecraft);
+    }
+
+    /**
+     * Opens {@link #WORLD} once the game has settled on a menu with no world in it, so the harness runs
+     * unattended.
+     *
+     * <p>Waits a few seconds and for the loading overlay to clear rather than testing for a title screen
+     * by class: the client spends its first seconds behind a resource-reload overlay with no world and
+     * no screen of its own, and opening from under that forks the load. The wait also means an
+     * already-running {@code --quickPlaySingleplayer} wins the race instead of being doubled up. On
+     * failure the flag clears so the next tick retries, rather than the harness stopping silently on a
+     * menu that looks exactly like a crash.
+     */
+    private static void joinWorld(Minecraft minecraft) {
+        if (joined) {
+            return;
+        }
+        if (++idleTicks % 100 == 0) {
+            BridgeMod.LOGGER.info("debug: waiting for a world (screen={}, overlay={})",
+                    minecraft.screen, minecraft.getOverlay());
+        }
+        if (idleTicks < JOIN_DELAY || minecraft.getOverlay() != null) {
+            return;
+        }
+        joined = true;
+        BridgeMod.LOGGER.info("debug: opening world {}", WORLD);
+        minecraft.createWorldOpenFlows().openWorld(WORLD, () -> joined = false);
     }
 
     /** One line when the board is scored, so a run can be checked without reading a chat log. */

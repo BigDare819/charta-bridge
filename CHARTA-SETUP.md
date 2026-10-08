@@ -591,8 +591,8 @@ new AutoPlayer(intelligence);                                      // shouldComp
     全空了**，`getPlayerHand` 里什么都问不出来。三个配套的点：
     * **`rank` 要把 A 挪到 14**：注册表里 A 的 `ordinal()` 是 1、2 是 2，直接用 ordinal 会让 A 变成最小的牌
       （和坑 30/58 一个性质，只是换了个地方）。
-    * **必须离开服务端线程**：一次全副解算 1~25 秒（朴素 alpha-beta，没有 DDS 那种 quick-trick 引擎），而且
-      `BridgeDoubleDummy` 的**全部状态都是 static**（含 32MB 置换表），所以只能挂在**单线程**
+    * **必须离开服务端线程**：一次全副解算 1~9 秒（朴素 alpha-beta，没有 DDS 那种 quick-trick 引擎），而且
+      `BridgeDoubleDummy` 的**全部状态都是 static**（含 256MB 置换表，见坑 88），所以只能挂在**单线程**
       `ExecutorService` 上串行跑，并发两次会互相踩。跑完用 `server.execute(...)` 回到主线程再 `table(...)`。
     * **播报要的是"捕获值"不是"活字段"**：结果回来时牌桌**多半已经不是这一副了**，而且 `isGameOver` 一置真，
       `CardTableBlockEntity.serverTick` 下一 tick 就把 `game.tick()` 停掉 —— 所以"在 `tick()` 里轮询"是错的，
@@ -600,7 +600,7 @@ new AutoPlayer(intelligence);                                      // shouldComp
     * **解算要在"叫牌结束"就发车，不是"打完"** ⚠️：播报时机在 `announceResult()`，但**开算时机必须在
       `concludeAuction()`**（`phase = Phase.PLAY` 之后、首攻之前）。将牌、首攻人、庄家方位、所需墩数这四项
       输入在叫牌结束的那一瞬间才全部确定，早于此（`beginAuction()`）将牌还是未知；而把开算放在 `announceResult()`
-      就是让全桌盯着已经摊好的牌墩干等 1~25 秒。放对了位置，搜索就藏在**整副牌的 13 墩打牌时间里**跑，
+      就是让全桌盯着已经摊好的牌墩干等 1~9 秒。放对了位置，搜索就藏在**整副牌的 13 墩打牌时间里**跑，
       打完一般早就好了：`collectDoubleDummy()` 先 `isDone()` 直接同步播报，没跑完才 `thenAccept` 挂上去等它，
       这样 `RESULT` 阶段的 80 tick 余韵也不浪费。
     * **"晚回来的那副"不用加 token 去掐**：一开始加了 `doubleDummyToken`、晚回来的答案如果发现牌桌已经开了
@@ -646,9 +646,72 @@ new AutoPlayer(intelligence);                                      // shouldComp
     离线工具都留在 `.scratch/dd`：`Main`（手验局面 + 零和 + 计时 + 朴素对拍）、`Brute`（真值）、
     `WindowCheck`（上下界必须夹住真值）、`Validate`（全副×全花色×四家首攻的零和）、`Bench`（节点/耗时）、
     `exp/One`（对单个指定局面跑一次并打印节点/命中次数，改搜索时用它做 A/B）、`exp/Hard`（对最费的局面集
-    计时，用来定 `NODE_CAP`）。
+    计时，用来定 `NODE_CAP`）、`ab.sh`（把解算器 + 全部探针 + 一个 exp 目标编起来跑，`-D/-X` 走 JVM）。
+
+88. **置换表开小了是"节点数 × 耗时"双输，而它比任何搜索技巧都值钱** ⚠️ — 解算器最大的一个杠杆不是剪枝、
+    不是走子顺序，而是 `TABLE_BITS`（`-Ddd.ttbits`，默认 `24`）。原先随手定的 `21`（2^21 × 16B = 32MB）
+    让搜索在最坏局面上要 89M 节点 / 14.9 秒，把它加到 `24`（256MB）变成 20M 节点 / 3.9 秒 —— **快 3.8 倍，
+    而且节点数还掉了 4.5 倍**，因为"表小"不只是探针慢，而是**每次冲突都白扔一整棵子树**：
+    * 尺度是这样（最坏局面 `One 0 4 3`）：2^21 = 14869ms / 89M 节点，2^22 = 8584ms / 49M，2^23 = 7613ms /
+      42M，2^24 = 3891ms / 20M，2^25 = 3866ms / 20M，2^26 = 4027ms，2^27 = 4684ms。**2^24 就是拐点**，
+      再大只加内存不加速度（表早就比缓存大几个数量级，探针本来就是一次内存往返，变大只会让 TLB/页更差）。
+    * 反过来往下缩要出事：2^20 → 181M 节点 / 26.5s，2^19 → 撞 `NODE_CAP`（300M）且**答案直接变小**
+      （10 → 9），2^18 → 答案 7。所以"缩表省内存"不是免费的，会一直缩到破掉 a+b=13（坑 87）。
+    * **做 A/B 时先只动这一个旋钮**：`./ab.sh One 0 4 3 300000000 -Ddd.ttbits=NN`。另外表是
+      `new long[TABLE_SIZE*2]` 的 `static final`，2^24 就是 256MB，只在**第一次解算**时随类初始化分配 ——
+      双明手选项关着的时候这个类根本不会被碰，所以不占。
+    * 同一轮里还量掉两个"看着该有用"的东西，都因为**节点数一模一样**而可以放心删：
+      ① 把 `keyOf` 里"赢墩那张牌的说明"从"每次出牌在子节点里增量维护 `WIN_KEY`"改回"在 `keyOf` 里现算
+      `bitCount(场上的牌 ∩ 该门 ∩ 那张牌以下)`"，14676ms vs 14869ms —— 增量维护是**每张着法** 5 个分支
+      + 1 次写数组，而现算是**每个节点** 1 次 bitCount，节点数一样时后者更划算；
+      ② 把置换表从两个并行数组 `TABLE_KEY[] + TABLE_VALUE[]` 改成一个 `TABLE[]` 交错存 `[key, meta]`
+      （条目数与总字节数都不变，2^21 / 32MB），17044ms → 14723ms：并行数组下一次探针要读**两条不相干
+      的缓存行**，交错后 key 和 value 落在同一条上。
+
+89. **`runClient` 要"无人值守"得自己开世界，而且别用标题界面当判据** ⚠️ — 调试牌桌靠
+    `BRIDGE_DEBUG_SCREEN=1` 一启动就摊牌，但它挂在 `if (minecraft.player == null || minecraft.level == null)
+    return;` 上，**没有世界就整段不跑**，而且失败的样子和"崩了"一模一样（日志停在 `Charta: Loaded 20
+    markdowns` 之后再无输出）。两个坑叠在一起：
+    * `build.gradle` 里 `programArgs('--quickPlaySingleplayer', 'New World')` 的**空格会被拆**：loom 把
+      programArgs 拼成一条命令串，JVM 再按空格切，于是游戏收到的是 `--quickPlaySingleplayer New World`
+      三个参数，levelId 取到 `"New"`，存档却叫 `New World` → 查不到 → 停在标题界面（`QuickPlay` 那条
+      "World not found" 还是 WARN，容易被刷掉）。改成不带空格的 `'New'`。
+    * 就算名字对上了，`--quickPlaySingleplayer` **只在存档已存在时生效**（首次没有就是没有），所以
+      `BridgeDebug.joinWorld()` 得自己 `createWorldOpenFlows().openWorld(...)`。**判据千万别写
+      `screen instanceof TitleScreen`**：启动后那几秒 screen 其实是 `GenericMessageScreen`（"Loading..."）
+      外加一个 `LoadingOverlay`，`instanceof TitleScreen` 一次都不成立 —— 本轮就在这里白跑了三轮
+      `runClient`。正确写法是"等够 N tick（100）且 `minecraft.getOverlay() == null` 才开"，并且**顺手每
+      100 tick 打一行 `screen=… overlay=…`**，下一次一眼就能看出卡在哪一层。失败时清掉标志位重试，
+      别让它静悄悄地停在菜单上。
+    * 自测世界放 `runs/client/saves/New`：`runs/` 被 gitignore，但**想留世界就只留 `saves`**，其余
+      （logs/config/downloads/mods）删掉（4.2）。
 
 ## 8. 变更记录
+
+- **2026-10-08 桥牌：解算器性能优化，最坏局面 20.2s → 3.9s**（需求「你再优化一下代码，提高性能」）。只动
+  `BridgeDoubleDummy` 和它的离线 A/B 工具，**玩法、播报文案、选项布局一概不变**，全部改动都以"节点数是否
+  逐位相同"作安全网。按测得收益排序：
+  ① **置换表 2^21 → 2^24**（32MB → 256MB）：这是唯一的大头，`exp/One` 的最坏局面 **20197ms / 89M 节点 →
+  3891ms / 20M 节点**（5.2 倍），`exp/Hard` 20 局面最坏 21090ms → 8944ms、总耗时 169616ms → 74764ms
+  （2.3 倍），总节点 623M → 374M。拐点在 2^24，2^25 起只加内存不加速；往下缩会一路缩到破 a+b=13
+  （2^19 就撞上限且答案变小），全部尺度记在坑 88。
+  ② **等价牌折叠的"全场 pattern"改成增量维护**（`PATTERN`/`PATTERN_N` + `pushPattern`/`seedPattern`，
+  替换每节点重扫四家手牌的 `canonicalPattern()`）：`One` 20251ms → 17044ms，节点数逐位相同。中途写错过
+  一次下标（用 `card % 13` 而不是全局位号），症状是节点数塌到 1.2M、答案 10 → 9。
+  ③ **置换表两数组合一个交错数组**（`TABLE[]` 存 `[key, meta]`）：17044ms → 14723ms。
+  ④ 量掉两个"看着有用"的：`keyOf` 里赢墩牌的说明从"每张着法增量维护"改回"每节点现算 bitCount"
+  （14869ms → 14676ms，增量维护是按着法算而现算是按节点算），以及 TT key 从 `lookup`/`store` 各建一次
+  改成每节点建一次后传参。两者节点数都逐位相同，所以删得放心。
+  用 `.scratch/dd/src/Validate`（3 副 × 5 将牌 × 4 首攻 = 60 项）复核 **bad=0，零和全绿**，
+  `gradlew build` 只剩既有的 `@Accessor` 警告。`ab.sh` 是本轮新加的 A/B 驱动（解算器 + 全部探针 + 一个
+  exp 目标一次编完跑掉）。
+  顺带把调试牌桌修成能**无人值守**跑：`build.gradle` 的 `--quickPlaySingleplayer 'New World'` 里那个空格
+  会被 JVM 拆成两个参数，于是 levelId 变成 "New"、查不到就停在标题界面（改成 `'New'`）；而且
+  `--quickPlaySingleplayer` 只在存档已存在时才生效，所以 `BridgeDebug.joinWorld()` 自己也开世界 ——
+  **判据不能写成 `screen instanceof TitleScreen`**，实测启动后那几秒的 screen 是 `GenericMessageScreen`
+  ＋ `LoadingOverlay`，于是改成"等 100 tick 且 `getOverlay() == null` 才开"，并每 100 tick 打一行
+  `screen=/overlay=` 方便下次定位。实测 `BRIDGE_DEBUG_SCREEN=1 runClient` 连打 **8/8 副、8 条双明手播报
+  （1 条来自 `bridge-double-dummy` 线程＝异步路径，7 条同步），无异常、无 OOM**。
 
 - **2026-10-08 桥牌：双明手选项（默认关闭）+ 打完后把双明手结果发聊天栏**（需求「加入一个选项模式:双明手.
   默认关闭；然后在正常对局后在聊天栏向所有玩家发送双明打结果」；随后又提「不能在对局进行中解算，然后再在

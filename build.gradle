@@ -81,8 +81,10 @@ loom {
             ideConfigGenerated(true)
             runDir('runs/client')
             // Jump straight back into the dev world instead of the main menu; ignored when
-            // runs/client/saves/New World does not exist yet.
-            programArgs('--quickPlaySingleplayer', 'New World')
+            // runs/client/saves/New does not exist yet (BridgeDebug opens it too, see its WORLD).
+            // No space in the name on purpose: loom passes program args as one command string, so
+            // "New World" reaches the game split into two arguments and the level lookup fails.
+            programArgs('--quickPlaySingleplayer', 'New')
         }
         server {
             server()
