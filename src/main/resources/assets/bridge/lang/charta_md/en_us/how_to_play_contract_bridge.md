@@ -71,11 +71,12 @@ Shift-click the cog on the game selection screen:
 * **Vulnerable declaring side**: score the board as vulnerable, with bigger bonuses and penalties.
 * **Bot strength**: Easy, Normal or Hard; click to cycle. Easy follows suit and bids on points alone,
   Hard rolls the trick out and hunts slams.
-* **Double-dummy post-mortem**: off by default. With it on, every board is solved with both sides
-  playing perfectly, and the double-dummy result is posted to chat the moment the board ends: how many
-  tricks the declaring side can take, how many the contract needs, and whether it should have made. The
-  search starts at the opening lead and runs in the background, so the play goes on while it thinks, and
-  it never changes the play.
+
+Separately, and with no switch of its own, **every board gets a double-dummy post-mortem**: the board
+is solved with both sides playing perfectly, and the result is posted to chat the moment the board
+ends — how many tricks the declaring side can take, how many the contract needs, and whether it should
+have made. The search starts at the opening lead and runs in the background, so the play goes on while
+it thinks, and it never changes the play.
 
 ## Rearranging the table
 

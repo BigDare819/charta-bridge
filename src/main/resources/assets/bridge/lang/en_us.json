@@ -11,8 +11,6 @@
   "rule.bridge.vulnerable.description": "Score the board as if the side that wins the auction were vulnerable: bigger game and slam bonuses, and bigger penalties when the contract goes down.",
   "rule.bridge.bot_strength": "Bot strength",
   "rule.bridge.bot_strength.description": "Easy: follows suit and bids on points alone. Normal: plays to the seat and the trick, and bids a real system. Hard: rolls the trick out before playing and hunts slams. Click to cycle.",
-  "rule.bridge.double_dummy": "Double-dummy post-mortem",
-  "rule.bridge.double_dummy.description": "Solve each board with both sides playing perfectly, in the background from the opening lead, and post the double-dummy result to chat when the board ends. The search hides behind the play, so nobody waits for it.",
 
   "strength.bridge.easy": "Easy",
   "strength.bridge.easy.description": "Plays the first card that follows suit and bids on high card points alone.",

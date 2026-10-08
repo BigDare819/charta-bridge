@@ -213,12 +213,12 @@ public final class BridgeDebug {
         }
 
         // options: [show trick count, fill empty seats with bots, declaring side vulnerable, bot strength
-        // (0 easy / 1 normal / 2 hard), double-dummy post-mortem]. Positional, so the newest option goes
-        // last; a short array is still valid -- setRawOptions just leaves the missing tail at its default
-        // -- but then the debug table silently runs whatever that default is. Double dummy is on here so
-        // the dev screen covers it; it is off by default in the real game.
+        // (0 easy / 1 normal / 2 hard)]. Positional, so the newest option goes last; a short array is
+        // still valid -- setRawOptions just leaves the missing tail at its default -- but then the debug
+        // table silently runs whatever that default is. The double-dummy post-mortem has no option any
+        // more, so nothing here turns it on.
         AbstractCardMenu.Definition definition = new AbstractCardMenu.Definition(
-                minecraft.player.blockPosition(), deck, ids, new byte[]{1, 1, 0, 1, 1});
+                minecraft.player.blockPosition(), deck, ids, new byte[]{1, 1, 0, 1});
 
         BridgeMenu menu = new BridgeMenu(0, minecraft.player.getInventory(), definition);
         screen = new BridgeScreen(menu, minecraft.player.getInventory(), Component.empty());

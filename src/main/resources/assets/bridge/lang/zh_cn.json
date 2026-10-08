@@ -11,8 +11,6 @@
   "rule.bridge.vulnerable.description": "按有局计分：成局和满贯奖励更高，宕墩罚分也更重。",
   "rule.bridge.bot_strength": "电脑强度",
   "rule.bridge.bot_strength.description": "简单：只会跟牌和按大牌点叫牌。普通：会看座位和形势出牌，叫牌有体系。困难：出牌会推演整墩，敢叫满贯。点一下切换。",
-  "rule.bridge.double_dummy": "双明手",
-  "rule.bridge.double_dummy.description": "每副牌开打时就按双明手（双方都打最优）在后台解这一副，等这副牌打完再把双明手结果发到聊天栏。搜索藏在打牌时间里跑，不用等；实在跑不完就等它跑完再补一条。",
 
   "strength.bridge.easy": "简单",
   "strength.bridge.easy.description": "跟花色出第一张牌，叫牌只看大牌点。",

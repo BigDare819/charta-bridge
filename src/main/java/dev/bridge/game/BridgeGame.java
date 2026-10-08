@@ -163,20 +163,6 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     );
 
     /**
-     * Double-dummy post-mortem: solve the board with both sides playing perfectly and say so in chat.
-     *
-     * <p>Off by default because the solve is a real search (see {@link #beginDoubleDummy()}), it is a
-     * verdict on a hand the table has already argued about, and not every table wants one. It costs
-     * nobody any waiting though: the search runs behind the play. Last in the option list for the same
-     * positional reason as {@link #BOT_STRENGTH}.
-     */
-    private final GameOption.Bool DOUBLE_DUMMY = new GameOption.Bool(
-            false,
-            Component.translatable("rule.bridge.double_dummy"),
-            Component.translatable("rule.bridge.double_dummy.description")
-    );
-
-    /**
      * The deal as it was before a card was played, one bitmask per seat in {@link BridgeDoubleDummy}'s
      * encoding, or {@code null} while a board is being dealt.
      *
@@ -685,7 +671,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
 
     @Override
     public List<GameOption<?>> getOptions() {
-        return List.of(SHOW_TRICK_COUNT, ENABLE_BOTS, VULNERABLE, BOT_STRENGTH, DOUBLE_DUMMY);
+        return List.of(SHOW_TRICK_COUNT, ENABLE_BOTS, VULNERABLE, BOT_STRENGTH);
     }
 
     /**
@@ -1436,8 +1422,12 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     /**
      * Kicks off the double-dummy solve for the board about to be played, on a background thread.
      *
+     * <p>Unconditional: every board gets a post-mortem. There is no option for it any more — the search
+     * runs behind the play, so a table is never made to wait for it, and a toggle that changes nothing
+     * is worse than no toggle.
+     *
      * <p>Called the moment the auction ends, not at the scoring, so the whole play is spent searching.
-     * Off the server thread on purpose: a full deal is between roughly one and twenty seconds of search
+     * Off the server thread on purpose: a full deal is between roughly one and ten seconds of search
      * (the solver is a plain alpha-beta, not the quick-trick machine a real double-dummy engine uses),
      * and nobody should be kept from leading while it runs. One solve at a time, because the solver keeps
      * every scrap of its state in statics.
@@ -1448,7 +1438,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
      * because the table may already be dealing the next board by the time it finishes.
      */
     private void beginDoubleDummy() {
-        if (!DOUBLE_DUMMY.get() || dealtHands == null || declarerSeat < 0 || !auction.hasContract()) {
+        if (dealtHands == null || declarerSeat < 0 || !auction.hasContract()) {
             doubleDummySolve = null;
             return;
         }
@@ -1485,7 +1475,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
      */
     private void collectDoubleDummy() {
         CompletableFuture<DoubleDummyAnswer> solve = doubleDummySolve;
-        if (!DOUBLE_DUMMY.get() || solve == null || doubleDummyContract == null) {
+        if (solve == null || doubleDummyContract == null) {
             return;
         }
         MinecraftServer server = findServer();
