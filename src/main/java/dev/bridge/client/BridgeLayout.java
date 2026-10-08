@@ -476,18 +476,22 @@ public final class BridgeLayout {
      * click handling hit-tests agree.
      *
      * <p>Slot order is positional and set by {@link BridgeMenu}: pile, then the seats in
-     * {@link BridgeMenu#HAND_ORDER}. Which <em>element</em> a seat's slot gets is its compass, though,
-     * not its index: the roster is rotated at random around the table, so seat 0 is only north by
-     * accident (see {@code BridgeGame#compass}).
+     * {@link BridgeMenu#seats()}. Which <em>element</em> a seat's slot gets is its hand's drawn compass,
+     * though, not its index: the local player's own hand is always first in that list and
+     * {@code viewCompass} always sends it to the bottom element, while the other three follow it around
+     * the ring. The roster is rotated at random on top of that, so seat 0 is only ever north by accident
+     * (see {@code BridgeGame#compass}).
      */
     public void apply(BridgeMenu menu, int screenWidth, int screenHeight) {
-        if (menu.cardSlots.size() < 1 + BridgeMenu.HAND_ORDER.length) {
+        int[] seats = menu.seats();
+        if (menu.cardSlots.size() < 1 + seats.length) {
             return;
         }
         setSlot(menu, 0, Element.PILE, screenWidth, screenHeight);
-        for (int i = 0; i < BridgeMenu.HAND_ORDER.length; i++) {
-            int seat = BridgeMenu.HAND_ORDER[i];
-            setSlot(menu, menu.handSlotIndex(i), hand(menu.getGame().compass(seat)), screenWidth, screenHeight);
+        for (int i = 0; i < seats.length; i++) {
+            int seat = seats[i];
+            int view = menu.getGame().viewCompass(seat, menu.getLocalSeat());
+            setSlot(menu, menu.handSlotIndex(i), hand(view), screenWidth, screenHeight);
         }
     }
 

@@ -1,0 +1,229 @@
+﻿OK   balanced 15 opens 1NT -> 1NT
+OK   five card major before a longer minor -> 1S
+OK   weak two on a six card suit -> 2S
+OK   22 points is a strong 2C -> 2C
+OK   better minor -> 1D
+OK   seven card suit and 10 points pre-empts -> 3D
+OK   responder names the four card major -> 1S
+OK   a fit and 11 points reaches game -> 4H
+OK   a single raise is not forced to game -> 2H
+OK   transfer, completion, then game -> 4H
+OK   a strong fit with controls reaches a slam -> 6S
+OK   29 combined is not a grand slam -> 3NT
+OK   a partscore deal stays low -> 1NT
+SCRIPTED-TRACE
+N(14) 1H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 2NT   J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 3H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 4H    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 4NT   7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 5D    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 6H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) Pass  J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+OK   an overcall is made -> 1S
+OK   the opening is raised -> 3H
+OK   and the overcall is raised too -> 3S
+OK   a takeout double of a minor opening -> X
+  --- grand EASY dealer W combined 30 : Pass 1NT 2S Pass Pass 3H 3S X Pass 4H 4S X Pass 5H 5S X Pass 6H 6S X Pass 7H 7S X Pass Pass Pass
+  deal N=A5.AK842.Q4.KQ52 | E=KQ9873.Q.JT52.J8 | S=JT42.T5.AK63.A96 | W=6.J9763.987.T743
+W( 1) Pass  6 6973J 978 T734
+N(18) 1NT   5A A48K2 4Q 5K2Q
+E( 9) 2S    3QK897 Q J2T5 8J
+S(12) Pass  JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 3H    5A A48K2 4Q 5K2Q
+E( 9) 3S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 4H    5A A48K2 4Q 5K2Q
+E( 9) 4S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 5H    5A A48K2 4Q 5K2Q
+E( 9) 5S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 6H    5A A48K2 4Q 5K2Q
+E( 9) 6S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 7H    5A A48K2 4Q 5K2Q
+E( 9) 7S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) Pass  5A A48K2 4Q 5K2Q
+E( 9) Pass  3QK897 Q J2T5 8J
+  --- grand EASY dealer S combined 27 : 2S Pass Pass 3C Pass 3NT Pass 4NT Pass 5NT Pass 6NT Pass 7NT Pass Pass Pass
+  deal N=952.Q85.Q432.Q42 | E=84.A43.J6.AKJ753 | S=KQJ63.J972.T75.T | W=AT7.KT6.AK98.986
+S( 7) 2S    63QKJ J792 T75 T
+W(14) Pass  AT7 K6T A9K8 689
+N( 6) Pass  925 85Q 243Q 42Q
+E(13) 3C    48 3A4 J6 7J35KA
+S( 7) Pass  63QKJ J792 T75 T
+W(14) 3NT   AT7 K6T A9K8 689
+N( 6) Pass  925 85Q 243Q 42Q
+E(13) 4NT   48 3A4 J6 7J35KA
+S( 7) Pass  63QKJ J792 T75 T
+W(14) 5NT   AT7 K6T A9K8 689
+N( 6) Pass  925 85Q 243Q 42Q
+E(13) 6NT   48 3A4 J6 7J35KA
+S( 7) Pass  63QKJ J792 T75 T
+W(14) 7NT   AT7 K6T A9K8 689
+N( 6) Pass  925 85Q 243Q 42Q
+E(13) Pass  48 3A4 J6 7J35KA
+S( 7) Pass  63QKJ J792 T75 T
+  --- grand EASY dealer W combined 30 : 1S 2H 3C Pass Pass 3H X Pass 3S 4H X Pass 4S 5H X Pass 5S 6H X Pass 6S 7H X Pass Pass Pass
+  deal N=.KQJT98652.K85.T | E=KJ.3.AQJ7.Q98532 | S=86432.7.9632.J74 | W=AQT975.A4.T4.AK6
+W(17) 1S    TA95Q7 4A T4 K6A
+N( 9) 2H    Q2J6KT985 K85 T
+E(13) 3C    KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) Pass  TA95Q7 4A T4 K6A
+N( 9) 3H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) 3S    TA95Q7 4A T4 K6A
+N( 9) 4H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) 4S    TA95Q7 4A T4 K6A
+N( 9) 5H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) 5S    TA95Q7 4A T4 K6A
+N( 9) 6H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) 6S    TA95Q7 4A T4 K6A
+N( 9) 7H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) Pass  TA95Q7 4A T4 K6A
+N( 9) Pass  Q2J6KT985 K85 T
+EASY    400 deals | passout   2 | 7-level   3 (  0.8%) | 6-level  11 | 5-level  53 | 3-4 level 131 | 1-2 level 200
+  --- grand NORMAL dealer N combined 24 : Pass 1C 1S 2H 3D 3H 3S Pass 4D Pass 4S Pass 5D Pass 5S Pass 6D Pass 6S Pass 7D Pass 7S Pass Pass Pass
+  deal N=85.8.AK975.QJ954 | E=A7.AK64.J32.T732 | S=KQT6432.Q.T6.AK6 | W=J9.JT97532.Q84.8
+N(10) Pass  58 8 K597A 9J4Q5
+E(12) 1C    7A 6A4K J23 327T
+S(14) 1S    34K26QT Q 6T KA6
+W( 4) 2H    J9 395J27T 4Q8 8
+N(10) 3D    58 8 K597A 9J4Q5
+E(12) 3H    7A 6A4K J23 327T
+S(14) 3S    34K26QT Q 6T KA6
+W( 4) Pass  J9 395J27T 4Q8 8
+N(10) 4D    58 8 K597A 9J4Q5
+E(12) Pass  7A 6A4K J23 327T
+S(14) 4S    34K26QT Q 6T KA6
+W( 4) Pass  J9 395J27T 4Q8 8
+N(10) 5D    58 8 K597A 9J4Q5
+E(12) Pass  7A 6A4K J23 327T
+S(14) 5S    34K26QT Q 6T KA6
+W( 4) Pass  J9 395J27T 4Q8 8
+N(10) 6D    58 8 K597A 9J4Q5
+E(12) Pass  7A 6A4K J23 327T
+S(14) 6S    34K26QT Q 6T KA6
+W( 4) Pass  J9 395J27T 4Q8 8
+N(10) 7D    58 8 K597A 9J4Q5
+E(12) Pass  7A 6A4K J23 327T
+S(14) 7S    34K26QT Q 6T KA6
+W( 4) Pass  J9 395J27T 4Q8 8
+N(10) Pass  58 8 K597A 9J4Q5
+E(12) Pass  7A 6A4K J23 327T
+NORMAL  400 deals | passout   5 | 7-level   1 (  0.3%) | 6-level  22 | 5-level  55 | 3-4 level 200 | 1-2 level 117
+  --- grand HARD dealer W combined 24 : 1D 2C 2H 2S 3D 4C Pass 4S Pass 5C Pass 5S Pass 6C Pass 6S Pass 7C Pass 7S Pass Pass Pass
+  deal N=Q6.K95.6.AKJT643 | E=T4.AT8764.73.985 | S=AK9872.J32.KT4.7 | W=J53.Q.AQJ9852.Q2
+W(12) 1D    53J Q 258J9AQ 2Q
+N(13) 2C    6Q K95 6 6TKJ43A
+E( 4) 2H    4T 687TA4 37 958
+S(11) 2S    9728KA 32J 4KT 7
+W(12) 3D    53J Q 258J9AQ 2Q
+N(13) 4C    6Q K95 6 6TKJ43A
+E( 4) Pass  4T 687TA4 37 958
+S(11) 4S    9728KA 32J 4KT 7
+W(12) Pass  53J Q 258J9AQ 2Q
+N(13) 5C    6Q K95 6 6TKJ43A
+E( 4) Pass  4T 687TA4 37 958
+S(11) 5S    9728KA 32J 4KT 7
+W(12) Pass  53J Q 258J9AQ 2Q
+N(13) 6C    6Q K95 6 6TKJ43A
+E( 4) Pass  4T 687TA4 37 958
+S(11) 6S    9728KA 32J 4KT 7
+W(12) Pass  53J Q 258J9AQ 2Q
+N(13) 7C    6Q K95 6 6TKJ43A
+E( 4) Pass  4T 687TA4 37 958
+S(11) 7S    9728KA 32J 4KT 7
+W(12) Pass  53J Q 258J9AQ 2Q
+N(13) Pass  6Q K95 6 6TKJ43A
+E( 4) Pass  4T 687TA4 37 958
+  --- grand HARD dealer N combined 25 : 2H 3D Pass 3S Pass 4D Pass 4S Pass 5D Pass 5S Pass 6D Pass 6S Pass 7D Pass 7S Pass Pass Pass
+  deal N=QT3.AT9543.Q76.4 | E=K8.6.AKJT9543.A3 | S=75.QJ72..KJT9875 | W=AJ9642.K8.82.Q62
+N( 8) 2H    Q3T 9453TA Q76 4
+E(15) 3D    K8 6 943KA5TJ 3A
+S( 7) Pass  75 2J7Q  7J95TK8
+W(10) 3S    9J642A 8K 82 6Q2
+N( 8) Pass  Q3T 9453TA Q76 4
+E(15) 4D    K8 6 943KA5TJ 3A
+S( 7) Pass  75 2J7Q  7J95TK8
+W(10) 4S    9J642A 8K 82 6Q2
+N( 8) Pass  Q3T 9453TA Q76 4
+E(15) 5D    K8 6 943KA5TJ 3A
+S( 7) Pass  75 2J7Q  7J95TK8
+W(10) 5S    9J642A 8K 82 6Q2
+N( 8) Pass  Q3T 9453TA Q76 4
+E(15) 6D    K8 6 943KA5TJ 3A
+S( 7) Pass  75 2J7Q  7J95TK8
+W(10) 6S    9J642A 8K 82 6Q2
+N( 8) Pass  Q3T 9453TA Q76 4
+E(15) 7D    K8 6 943KA5TJ 3A
+S( 7) Pass  75 2J7Q  7J95TK8
+W(10) 7S    9J642A 8K 82 6Q2
+N( 8) Pass  Q3T 9453TA Q76 4
+E(15) Pass  K8 6 943KA5TJ 3A
+S( 7) Pass  75 2J7Q  7J95TK8
+  --- grand HARD dealer E combined 20 : 1NT 2H Pass 2S 2NT 3H Pass 3S Pass 4H Pass 4S Pass 5H Pass 5S Pass 6H Pass 6S Pass 7H Pass 7S Pass Pass Pass
+  deal N=876542.KQ.T.AJ87 | E=AK.T83.AQ432.K65 | S=T9.AJ942.K9765.Q | W=QJ3.765.J8.T9432
+E(16) 1NT   KA 38T A432Q K65
+S(10) 2H    T9 94A2J 679K5 Q
+W( 4) Pass  QJ3 567 J8 492T3
+N(10) 2S    256784 QK T JA87
+E(16) 2NT   KA 38T A432Q K65
+S(10) 3H    T9 94A2J 679K5 Q
+W( 4) Pass  QJ3 567 J8 492T3
+N(10) 3S    256784 QK T JA87
+E(16) Pass  KA 38T A432Q K65
+S(10) 4H    T9 94A2J 679K5 Q
+W( 4) Pass  QJ3 567 J8 492T3
+N(10) 4S    256784 QK T JA87
+E(16) Pass  KA 38T A432Q K65
+S(10) 5H    T9 94A2J 679K5 Q
+W( 4) Pass  QJ3 567 J8 492T3
+N(10) 5S    256784 QK T JA87
+E(16) Pass  KA 38T A432Q K65
+S(10) 6H    T9 94A2J 679K5 Q
+W( 4) Pass  QJ3 567 J8 492T3
+N(10) 6S    256784 QK T JA87
+E(16) Pass  KA 38T A432Q K65
+S(10) 7H    T9 94A2J 679K5 Q
+W( 4) Pass  QJ3 567 J8 492T3
+N(10) 7S    256784 QK T JA87
+E(16) Pass  KA 38T A432Q K65
+S(10) Pass  T9 94A2J 679K5 Q
+W( 4) Pass  QJ3 567 J8 492T3
+HARD    400 deals | passout   5 | 7-level   3 (  0.8%) | 6-level  28 | 5-level  50 | 3-4 level 191 | 1-2 level 123
+
+checks = 1307, failures = 6
+
+FAILED: Jacoby 2NT reaches game: wanted 4H, got 6H after 1H Pass 2NT Pass 3H Pass 4H Pass 4NT Pass 5D Pass 6H Pass Pass Pass
+FAILED: a slam has the points (EASY deal 12) (slam on 21 combined points)
+FAILED: a grand slam has the points (NORMAL deal 316) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (HARD deal 135) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (HARD deal 264) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (HARD deal 325) (grand slam on 20 combined points)

@@ -1,0 +1,231 @@
+﻿  seat0 plays D4 (len 0)
+    seat1 plays D2 (len 1)
+      seat2 plays D5 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat2
+  seat2 plays S2 (len 0)
+    seat3 plays D6 (len 1)
+      seat0 plays H2 (len 2)
+        seat1 plays C2 (len 3)
+   trick won by seat1
+          -> 1
+        -> 1
+      -> 1
+    -> 1
+          -> 1
+        seat3 plays D6 (len 3)
+   trick won by seat0
+  seat0 plays H2 (len 0)
+    seat1 plays C2 (len 1)
+      seat2 plays S2 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat1
+          -> 1
+        -> 1
+      -> 1
+    -> 1
+          -> 2
+        -> 1
+      -> 1
+    -> 1
+  seat0 plays H2 (len 0)
+    seat1 plays C2 (len 1)
+      seat2 plays D5 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat1
+  seat1 plays D2 (len 0)
+    seat2 plays S2 (len 1)
+      seat3 plays D6 (len 2)
+        seat0 plays D4 (len 3)
+   trick won by seat3
+          -> 0
+        -> 0
+      -> 0
+    -> 0
+          -> 1
+        seat3 plays D6 (len 3)
+   trick won by seat2
+  seat2 plays S2 (len 0)
+    seat3 plays D3 (len 1)
+      seat0 plays D4 (len 2)
+        seat1 plays D2 (len 3)
+   trick won by seat2
+          -> 0
+        -> 0
+      -> 0
+    -> 0
+          -> 0
+        -> 0
+      seat2 plays S2 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat0
+  seat0 plays D4 (len 0)
+    seat1 plays D2 (len 1)
+      seat2 plays D5 (len 2)
+        seat3 plays D6 (len 3)
+   trick won by seat3
+          -> 0
+        -> 0
+      -> 0
+    -> 0
+          -> 1
+        seat3 plays D6 (len 3)
+   trick won by seat3
+  seat3 plays D3 (len 0)
+    seat0 plays D4 (len 1)
+      seat1 plays D2 (len 2)
+        seat2 plays D5 (len 3)
+   trick won by seat2
+          -> 0
+        -> 0
+      -> 0
+    -> 0
+          -> 0
+        -> 0
+      -> 0
+    seat1 plays D2 (len 1)
+      seat2 plays D5 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat2
+  seat2 plays S2 (len 0)
+    seat3 plays D6 (len 1)
+      seat0 plays D4 (len 2)
+        seat1 plays C2 (len 3)
+   trick won by seat1
+          -> 1
+        -> 1
+      -> 1
+    -> 1
+          -> 1
+        seat3 plays D6 (len 3)
+   trick won by seat0
+  seat0 plays D4 (len 0)
+    seat1 plays C2 (len 1)
+      seat2 plays S2 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat1
+          -> 1
+        -> 1
+      -> 1
+    -> 1
+          -> 2
+        -> 1
+      -> 1
+    -> 1
+!!P3 side=11 brute=1 naive=2 solver=0
+  seat0 plays D4 (len 0)
+    seat1 plays D2 (len 1)
+      seat2 plays D5 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat2
+  seat2 plays S2 (len 0)
+    seat3 plays D6 (len 1)
+      seat0 plays H2 (len 2)
+        seat1 plays C2 (len 3)
+   trick won by seat1
+          -> 0
+        -> 0
+      -> 0
+    -> 0
+          -> 1
+        seat3 plays D6 (len 3)
+   trick won by seat0
+  seat0 plays H2 (len 0)
+    seat1 plays C2 (len 1)
+      seat2 plays S2 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat1
+          -> 0
+        -> 0
+      -> 0
+    -> 0
+          -> 0
+        -> 1
+      -> 1
+    -> 1
+  seat0 plays H2 (len 0)
+    seat1 plays C2 (len 1)
+      seat2 plays D5 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat1
+  seat1 plays D2 (len 0)
+    seat2 plays S2 (len 1)
+      seat3 plays D6 (len 2)
+        seat0 plays D4 (len 3)
+   trick won by seat3
+          -> 1
+        -> 1
+      -> 1
+    -> 1
+          -> 1
+        seat3 plays D6 (len 3)
+   trick won by seat2
+  seat2 plays S2 (len 0)
+    seat3 plays D3 (len 1)
+      seat0 plays D4 (len 2)
+        seat1 plays D2 (len 3)
+   trick won by seat2
+          -> 1
+        -> 1
+      -> 1
+    -> 1
+          -> 2
+        -> 2
+      seat2 plays S2 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat0
+  seat0 plays D4 (len 0)
+    seat1 plays D2 (len 1)
+      seat2 plays D5 (len 2)
+        seat3 plays D6 (len 3)
+   trick won by seat3
+          -> 1
+        -> 1
+      -> 1
+    -> 1
+          -> 1
+        seat3 plays D6 (len 3)
+   trick won by seat3
+  seat3 plays D3 (len 0)
+    seat0 plays D4 (len 1)
+      seat1 plays D2 (len 2)
+        seat2 plays D5 (len 3)
+   trick won by seat2
+          -> 1
+        -> 1
+      -> 1
+    -> 1
+          -> 2
+        -> 2
+      -> 2
+    seat1 plays D2 (len 1)
+      seat2 plays D5 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat2
+  seat2 plays S2 (len 0)
+    seat3 plays D6 (len 1)
+      seat0 plays D4 (len 2)
+        seat1 plays C2 (len 3)
+   trick won by seat1
+          -> 0
+        -> 0
+      -> 0
+    -> 0
+          -> 1
+        seat3 plays D6 (len 3)
+   trick won by seat0
+  seat0 plays D4 (len 0)
+    seat1 plays C2 (len 1)
+      seat2 plays S2 (len 2)
+        seat3 plays D3 (len 3)
+   trick won by seat1
+          -> 0
+        -> 0
+      -> 0
+    -> 0
+          -> 0
+        -> 1
+      -> 1
+    -> 1
+!!P3 side=1100 brute=1 naive=0 solver=0
+

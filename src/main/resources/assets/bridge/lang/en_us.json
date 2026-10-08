@@ -9,6 +9,17 @@
   "rule.bridge.enable_bots.description": "Seats nobody is sitting in are taken by AI players, so a single person can start a table. Turn this off to require four real players.",
   "rule.bridge.vulnerable": "Vulnerable declaring side",
   "rule.bridge.vulnerable.description": "Score the board as if the side that wins the auction were vulnerable: bigger game and slam bonuses, and bigger penalties when the contract goes down.",
+  "rule.bridge.bot_strength": "Bot strength",
+  "rule.bridge.bot_strength.description": "Easy: follows suit and bids on points alone. Normal: plays to the seat and the trick, and bids a real system. Hard: rolls the trick out before playing and hunts slams. Click to cycle.",
+  "rule.bridge.double_dummy": "Double-dummy post-mortem",
+  "rule.bridge.double_dummy.description": "After every board, solve it with both sides playing perfectly and post the double-dummy result to chat. The search takes a few seconds; turn it off if you would rather not wait.",
+
+  "strength.bridge.easy": "Easy",
+  "strength.bridge.easy.description": "Plays the first card that follows suit and bids on high card points alone.",
+  "strength.bridge.normal": "Normal",
+  "strength.bridge.normal.description": "Plays to the seat and the current trick, and bids a full system.",
+  "strength.bridge.hard": "Hard",
+  "strength.bridge.hard.description": "Rolls the rest of the trick out before choosing, hunts slams and doubles for penalties.",
 
   "bid.bridge.pass": "Pass",
   "bid.bridge.double": "X",
@@ -22,6 +33,7 @@
   "seat.bridge.west": "West",
   "seat.bridge.none": "nobody",
   "seat.bridge.dummy_tag": " (dummy)",
+  "seat.bridge.points": " (%s pts)",
 
   "player.bridge.bot": "Bot %s",
 
@@ -49,7 +61,8 @@
   "message.bridge.auction_over": "Auction closed",
   "message.bridge.declared_by": "Declared by %s",
   "message.bridge.passed_out_short": "Four passes - passed out",
-  "message.bridge.progress": "Declarer %s/%s tricks, defenders %s",
+  "message.bridge.progress": "Us %s/%s tricks, them %s",
+  "message.bridge.progress_no_contract": "Us %s tricks, them %s",
   "message.bridge.even_teams": "Contract Bridge needs an even number of players so the partnerships are fair.",
   "message.bridge.board_over": "Board over: %s needed %s tricks, made %s.",
   "message.bridge.contract_made": "Contract made!",
@@ -62,6 +75,11 @@
   "message.bridge.result_down": "Contract down",
   "message.bridge.score_delta": "Score %s",
   "message.bridge.match_over": "Board scored: %s",
+
+  "message.bridge.double_dummy_result": "[double dummy] %s by %s: with both sides playing perfectly the declaring side can take at most %s tricks and the contract needs %s - %s (this board took %s)%s",
+  "message.bridge.double_dummy_made": "the contract still makes",
+  "message.bridge.double_dummy_down": "the contract is %s light",
+  "message.bridge.double_dummy_approximate": " (search capped, approximate)",
 
   "editor.bridge.hint": "F9 close/edit | drag move | scroll scale | R reset | Ctrl+R reset all (config/bridge-layout.properties)",
   "editor.bridge.popup": "Auction panel",

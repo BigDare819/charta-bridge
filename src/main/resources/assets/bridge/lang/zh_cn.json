@@ -9,6 +9,17 @@
   "rule.bridge.enable_bots.description": "没有真人坐的座位会由 AI 玩家顶上，一个人也能开局。关闭后必须坐满四名真人。",
   "rule.bridge.vulnerable": "定约方算有局",
   "rule.bridge.vulnerable.description": "按有局计分：成局和满贯奖励更高，宕墩罚分也更重。",
+  "rule.bridge.bot_strength": "电脑强度",
+  "rule.bridge.bot_strength.description": "简单：只会跟牌和按大牌点叫牌。普通：会看座位和形势出牌，叫牌有体系。困难：出牌会推演整墩，敢叫满贯。点一下切换。",
+  "rule.bridge.double_dummy": "双明手",
+  "rule.bridge.double_dummy.description": "每副牌结束后，按双明手（双方都打最优）把这一副解一遍，并把双明手结果发到聊天栏。搜索要跑几秒，介意就关掉。",
+
+  "strength.bridge.easy": "简单",
+  "strength.bridge.easy.description": "跟花色出第一张牌，叫牌只看大牌点。",
+  "strength.bridge.normal": "普通",
+  "strength.bridge.normal.description": "会看座位和当前这一墩的形势出牌，叫牌有完整体系。",
+  "strength.bridge.hard": "困难",
+  "strength.bridge.hard.description": "在普通的基础上推演整墩，会抓满贯、会惩罚性加倍。",
 
   "bid.bridge.pass": "过",
   "bid.bridge.double": "加倍",
@@ -22,6 +33,7 @@
   "seat.bridge.west": "西",
   "seat.bridge.none": "无",
   "seat.bridge.dummy_tag": "（明手）",
+  "seat.bridge.points": "（%s 点）",
 
   "player.bridge.bot": "电脑 %s",
 
@@ -49,7 +61,8 @@
   "message.bridge.auction_over": "叫牌结束",
   "message.bridge.declared_by": "由 %s 主打",
   "message.bridge.passed_out_short": "四家皆过 · 流局",
-  "message.bridge.progress": "庄家 %s/%s 墩，防家 %s 墩",
+  "message.bridge.progress": "我方 %s/%s 墩，对方 %s 墩",
+  "message.bridge.progress_no_contract": "我方 %s 墩，对方 %s 墩",
   "message.bridge.even_teams": "定约桥牌需要偶数名玩家，这样两队才公平。",
   "message.bridge.board_over": "本副结束：%s 需要 %s 墩，实得 %s 墩。",
   "message.bridge.contract_made": "定约完成！",
@@ -62,6 +75,11 @@
   "message.bridge.result_down": "定约宕了",
   "message.bridge.score_delta": "得分 %s",
   "message.bridge.match_over": "本副计分：%s",
+
+  "message.bridge.double_dummy_result": "【双明手】定约 %s 由 %s 主打：双方都打最优的话，主打方最多只能拿 %s 墩，定约需要 %s 墩——%s（本局实得 %s 墩）%s",
+  "message.bridge.double_dummy_made": "双明手也能成约",
+  "message.bridge.double_dummy_down": "双明手要宕 %s 墩",
+  "message.bridge.double_dummy_approximate": "（搜索没跑完，这是近似值）",
 
   "editor.bridge.hint": "F9 关闭/编辑 | 拖动移动 | 滚轮缩放 | R 复位 | Ctrl+R 全部复位（config/bridge-layout.properties）",
   "editor.bridge.popup": "叫牌面板",

@@ -10,9 +10,16 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>It is a plain {@link AutoPlayer} — Charta already knows how to drive one: {@code AutoPlayer.tick}
  * waits a randomised beat whenever it is that player's turn and then asks the game for
- * {@code getBestPlay}, which walks the hand and returns the first card our {@code canPlay} accepts.
- * That is exactly follow-suit play, for free. All this class adds is a readable identity and the
- * {@link #equals} quirk explained below.
+ * {@code getBestPlay}, which is where {@link BridgeBidding} and {@link BridgePlay} do the thinking. All
+ * this class adds is a readable identity, the strength it was built at, and the {@link #equals} quirk
+ * explained below.
+ *
+ * <h2>Strength</h2>
+ *
+ * <p>Held on the bot rather than read from the game option: the option is on the game and the game asks
+ * the <em>bot</em> to decide, so keeping the two apart would make every decision walk back to a mutable
+ * setting, and it would not survive the client rebuilding its roster from the option bytes. A bot is
+ * built from a strength and keeps it for the board.
  *
  * <h2>Why {@code equals} is deliberately lopsided</h2>
  *
@@ -33,11 +40,19 @@ public class BridgeBot extends AutoPlayer {
 
     private final int number;
     private final DyeColor color;
+    private final BridgeStrength strength;
 
     public BridgeBot(int number) {
-        // 0.5 lands the thinking delay in a comfortable ~1.5-3.5s window.
-        super(0.5f);
+        this(number, BridgeStrength.NORMAL);
+    }
+
+    public BridgeBot(int number, BridgeStrength strength) {
+        // Charta's intelligence only drives the thinking delay: 0 is the slow end of its lerp and 1 the
+        // fast one. A stronger bot answers sooner, which reads as confidence and keeps a HARD table
+        // moving; the delay was never the difficulty.
+        super(strength == BridgeStrength.HARD ? 0.85f : strength == BridgeStrength.NORMAL ? 0.6f : 0.35f);
         this.number = number;
+        this.strength = strength;
         this.color = switch (number % 3) {
             case 1 -> DyeColor.ORANGE;
             case 2 -> DyeColor.LIGHT_BLUE;
@@ -48,6 +63,11 @@ public class BridgeBot extends AutoPlayer {
     /** 1-based, only used to tell the bots apart in chat and on the table labels. */
     public int getNumber() {
         return number;
+    }
+
+    /** How hard this bot thinks; see {@link BridgeStrength}. */
+    public BridgeStrength getStrength() {
+        return strength;
     }
 
     @Override

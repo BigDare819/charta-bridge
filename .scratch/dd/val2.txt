@@ -1,0 +1,4 @@
+deal0 done
+deal1 done
+checked=40 bad=0 worst=44883ms
+RESULT: zero-sum holds everywhere

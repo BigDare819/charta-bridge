@@ -1,0 +1,92 @@
+﻿OK   balanced 15 opens 1NT -> 1NT
+OK   five card major before a longer minor -> 1S
+OK   weak two on a six card suit -> 2S
+OK   22 points is a strong 2C -> 2C
+OK   better minor -> 1D
+OK   seven card suit and 10 points pre-empts -> 3D
+OK   responder names the four card major -> 1S
+OK   a fit and 11 points reaches game -> 4H
+OK   a single raise is not forced to game -> 2H
+OK   transfer, completion, then game -> 4H
+OK   Jacoby 2NT reaches game -> 4H
+OK   a strong fit with controls reaches a slam -> 6S
+OK   29 combined is not a grand slam -> 3NT
+OK   a partscore deal stays low -> 1NT
+SCRIPTED-TRACE
+N(14) 1H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 2NT   J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 3H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 4H    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) Pass  7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+OK   an overcall is made -> 1S
+OK   the opening is raised -> 3H
+OK   and the overcall is raised too -> 3S
+OK   a takeout double of a minor opening -> X
+  --- grand EASY dealer W combined 30 : Pass 1NT 2S Pass Pass 3H 3S X Pass 4H 4S X Pass 5H 5S X Pass 6H 6S X Pass 7H 7S X Pass Pass Pass
+  deal N=A5.AK842.Q4.KQ52 | E=KQ9873.Q.JT52.J8 | S=JT42.T5.AK63.A96 | W=6.J9763.987.T743
+W( 1) Pass  6 6973J 978 T734
+N(18) 1NT   5A A48K2 4Q 5K2Q
+E( 9) 2S    3QK897 Q J2T5 8J
+S(12) Pass  JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 3H    5A A48K2 4Q 5K2Q
+E( 9) 3S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 4H    5A A48K2 4Q 5K2Q
+E( 9) 4S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 5H    5A A48K2 4Q 5K2Q
+E( 9) 5S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 6H    5A A48K2 4Q 5K2Q
+E( 9) 6S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) 7H    5A A48K2 4Q 5K2Q
+E( 9) 7S    3QK897 Q J2T5 8J
+S(12) X     JT42 5T K6A3 6A9
+W( 1) Pass  6 6973J 978 T734
+N(18) Pass  5A A48K2 4Q 5K2Q
+E( 9) Pass  3QK897 Q J2T5 8J
+  --- grand EASY dealer W combined 30 : 1S 2H 3C Pass Pass 3H X Pass 3S 4H X Pass 4S 5H X Pass 5S 6H X Pass 6S 7H X Pass Pass Pass
+  deal N=.KQJT98652.K85.T | E=KJ.3.AQJ7.Q98532 | S=86432.7.9632.J74 | W=AQT975.A4.T4.AK6
+W(17) 1S    TA95Q7 4A T4 K6A
+N( 9) 2H    Q2J6KT985 K85 T
+E(13) 3C    KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) Pass  TA95Q7 4A T4 K6A
+N( 9) 3H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) 3S    TA95Q7 4A T4 K6A
+N( 9) 4H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) 4S    TA95Q7 4A T4 K6A
+N( 9) 5H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) 5S    TA95Q7 4A T4 K6A
+N( 9) 6H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) 6S    TA95Q7 4A T4 K6A
+N( 9) 7H    Q2J6KT985 K85 T
+E(13) X     KJ 3 7QJA 835Q29
+S( 1) Pass  42683 7 2396 4J7
+W(17) Pass  TA95Q7 4A T4 K6A
+N( 9) Pass  Q2J6KT985 K85 T
+EASY    400 deals | passout   2 | 7-level   2 (  0.5%) | 6-level   0 | 5-level  37 | 3-4 level 140 | 1-2 level 219
+NORMAL  400 deals | passout   5 | 7-level   0 (  0.0%) | 6-level  18 | 5-level  51 | 3-4 level 209 | 1-2 level 117
+HARD    400 deals | passout   5 | 7-level   0 (  0.0%) | 6-level  21 | 5-level  48 | 3-4 level 202 | 1-2 level 124
+
+checks = 1275, failures = 0
+ALL OK

@@ -713,9 +713,12 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
      * <h2>Which card goes where</h2>
      *
      * <p>Entry {@code i} of the pile was played by the seat {@code i} places clockwise from the trick's
-     * leader, and each card is dropped in the cell of the <em>compass</em> that seat is sitting on, so
-     * the trick reads from the same side of the table as the player who is on it. A card is only drawn
-     * once its seat is known, hence the {@code -1} guard: an empty pile has no leader.
+     * leader, and each card is dropped in the cell of that seat's <em>drawn</em> compass, so the trick
+     * reads from the same side of the screen as the hand that played it — the cell a player's card lands
+     * in is the one in front of their own fan. The letters in the cells are world directions and are
+     * looked up rather than indexed, so a cell that has rotated to the bottom of the screen is labelled
+     * with whoever is actually sitting there. A card is only drawn once its seat is known, hence the
+     * {@code -1} guard: an empty pile has no leader.
      *
      * <h2>Collecting the trick</h2>
      *
@@ -735,29 +738,33 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         // sweep takes over as the cue -- which is exactly the window SYNC_TRICK_WINNER is published for.
         CardPlayer active = menu.getTrickWinnerSeat() < 0
                 ? menu.getPlayerAtSeat(menu.getCurrentSeat()) : null;
-        int activeCell = active == null ? -1 : compass(menu.getCurrentSeat());
+        int activeCell = active == null ? -1 : handCompass(menu.getCurrentSeat());
 
-        for (int compass = 0; compass < BridgeLayout.PILE_CELLS; compass++) {
-            int[] cell = LAYOUT.pileCell(compass, width, height);
-            boolean isActive = compass == activeCell;
+        for (int cell = 0; cell < BridgeLayout.PILE_CELLS; cell++) {
+            int[] box = LAYOUT.pileCell(cell, width, height);
+            boolean isActive = cell == activeCell;
 
-            guiGraphics.fill(cell[0], cell[1], cell[0] + cell[2], cell[1] + cell[3], CELL_BG);
+            guiGraphics.fill(box[0], box[1], box[0] + box[2], box[1] + box[3], CELL_BG);
             if (isActive) {
                 // Alpha only: the hue is the seat colour the name plates already use, so the two read
                 // as the same person. Pulsed so it says "now" rather than looking like a fifth frame.
                 int accent = rgb(active.getColor());
-                guiGraphics.fill(cell[0], cell[1], cell[0] + cell[2], cell[1] + cell[3],
+                guiGraphics.fill(box[0], box[1], box[0] + box[2], box[1] + box[3],
                         (pulseAlpha() << 24) | accent);
-                frame(guiGraphics, cell[0], cell[1], cell[2], cell[3], 0xFF000000 | accent);
-                frame(guiGraphics, cell[0] + 1, cell[1] + 1, cell[2] - 2, cell[3] - 2, 0xFF000000 | accent);
+                frame(guiGraphics, box[0], box[1], box[2], box[3], 0xFF000000 | accent);
+                frame(guiGraphics, box[0] + 1, box[1] + 1, box[2] - 2, box[3] - 2, 0xFF000000 | accent);
             } else {
-                frame(guiGraphics, cell[0], cell[1], cell[2], cell[3], OUTLINE);
+                frame(guiGraphics, box[0], box[1], box[2], box[3], OUTLINE);
             }
 
-            Component letter = Component.literal(BridgeLayout.COMPASS_LETTERS[compass]);
+            // The cell is a screen position but the letter is a world direction, and the cells rotate
+            // with the hands, so the letter has to be looked up rather than indexed. A cell nobody sits
+            // at (a two-player board) falls back to the position, which is right when nothing rotates.
+            int seat = menu.getGame().seatAtView(cell, menu.getLocalSeat());
+            Component letter = Component.literal(compassLetter(seat < 0 ? cell : compass(seat)));
             guiGraphics.drawString(font, letter,
-                    cell[0] + (cell[2] - font.width(letter)) / 2,
-                    cell[1] + (cell[3] - 8) / 2,
+                    box[0] + (box[2] - font.width(letter)) / 2,
+                    box[1] + (box[3] - 8) / 2,
                     PILE_LETTER, false);
         }
 
@@ -781,7 +788,7 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
 
         int index = 0;
         for (Card card : cards) {
-            int[] cell = LAYOUT.pileCell(compass(Math.floorMod(leader + index, BridgeGame.PLAYERS)), width, height);
+            int[] cell = LAYOUT.pileCell(handCompass(Math.floorMod(leader + index, BridgeGame.PLAYERS)), width, height);
             float cardX = cell[0] + cell[2] / 2f;
             float cardY = cell[1] + cell[3] / 2f;
             float size = 1f;
@@ -831,7 +838,7 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
 
     /** Centre of the winner's hand, in screen coordinates. */
     private float[] winnerAnchor(int winnerSeat) {
-        int[] box = LAYOUT.bounds(BridgeLayout.hand(compass(winnerSeat)), width, height);
+        int[] box = LAYOUT.bounds(BridgeLayout.hand(handCompass(winnerSeat)), width, height);
         return new float[]{box[0] + box[2] / 2f, box[1] + box[3] / 2f};
     }
 
@@ -892,7 +899,14 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
 
     // ------------------------------------------------------------------- seats ---
 
-    /** Name plates pinned to the hands, plus the dummy highlight. */
+    /**
+     * Name plates pinned to the hands, plus the dummy highlight.
+     *
+     * <p>Pinned to the <em>hand</em>: the plate box comes off the same rotated compass the fan is drawn
+     * with ({@link #handCompass}), so a name always sits with the cards it belongs to. The wording stays
+     * on the world compass, so a plate that has followed its hand to the bottom of the screen still
+     * reads "North" rather than relabelling the player as south.
+     */
     private void renderSeats(GuiGraphics guiGraphics) {
         for (int seat = 0; seat < BridgeGame.PLAYERS; seat++) {
             drawSeatLabel(guiGraphics, seat);
@@ -905,7 +919,7 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         if (player == null) {
             return;
         }
-        int[] box = LAYOUT.bounds(BridgeLayout.plate(compass(seat)), width, height);
+        int[] box = LAYOUT.bounds(BridgeLayout.plate(handCompass(seat)), width, height);
         int color = rgb(player.getColor());
 
         Component text = Component.translatable("seat.bridge." + COMPASS[compass(seat)]);
@@ -913,6 +927,11 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
             text = text.copy().append(Component.translatable("seat.bridge.you"));
         }
         text = text.copy().append(" ").append(player.getName());
+        if (seat == menu.getLocalSeat()) {
+            // Only against the local player: the other three hands are hidden, so a count beside them
+            // would be a number the viewer cannot check. See BridgeMenu#getLocalPoints.
+            text = text.copy().append(Component.translatable("seat.bridge.points", menu.getLocalPoints()));
+        }
         if (seat == menu.getDummySeat()) {
             text = text.copy().append(Component.translatable("seat.bridge.dummy_tag"));
         }
@@ -940,7 +959,7 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         if (dummySeat < 0) {
             return;
         }
-        BridgeLayout.Element element = BridgeLayout.hand(compass(dummySeat));
+        BridgeLayout.Element element = BridgeLayout.hand(handCompass(dummySeat));
         int[] box = LAYOUT.bounds(element, width, height);
         int color = dummySeat == currentSeat ? 0xFFFFE97F : 0x66FFE97F;
         frame(guiGraphics, box[0] - 1, box[1] - 1, box[2] + 2, box[3] + 2, color);
@@ -994,10 +1013,17 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         }
 
         boolean declaring = Math.floorMod(localSeat - menu.getDeclarerSeat(), 2) == 0;
+        // "Ours" and "theirs" rather than "declarer" and "defenders": for a defender the two numbers
+        // used to be handed over in exactly this order while the wording stayed declarer-first, so the
+        // defending side read their own tricks under the declarer's label and vice versa. A side is
+        // measured from the local seat's parity, which is the same test the score line uses.
         int ours = declaring ? menu.getDeclarerTricks() : menu.getDefenderTricks();
         int theirs = declaring ? menu.getDefenderTricks() : menu.getDeclarerTricks();
-        drawStatusLine(guiGraphics, Component.translatable("message.bridge.progress",
-                ours, menu.getRequiredTricks(), theirs), BridgeLayout.Element.STATUS_PROGRESS);
+        Component progress = menu.getContract() == 0
+                ? Component.translatable("message.bridge.progress_no_contract", ours, theirs)
+                : Component.translatable("message.bridge.progress",
+                        ours, menu.getRequiredTricks(), theirs);
+        drawStatusLine(guiGraphics, progress, BridgeLayout.Element.STATUS_PROGRESS);
 
         if (menu.getGame().isShowingTrickCount()) {
             drawStatusLine(guiGraphics, Component.translatable("message.bridge.tricks",
@@ -1035,9 +1061,13 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
             drawCentered(guiGraphics, Component.translatable("message.bridge.score_delta", menu.getScore()),
                     top + 36);
         }
+        // Same our-side / their-side framing as the live progress line, so the final count reads the
+        // same way it did all board.
+        boolean declaringSide = Math.floorMod(menu.getLocalSeat() - menu.getDeclarerSeat(), 2) == 0;
+        int ours = declaringSide ? menu.getDeclarerTricks() : menu.getDefenderTricks();
+        int theirs = declaringSide ? menu.getDefenderTricks() : menu.getDeclarerTricks();
         drawCentered(guiGraphics, Component.translatable("message.bridge.progress",
-                menu.getDeclarerTricks(), menu.getRequiredTricks(), menu.getDefenderTricks()),
-                top + 47);
+                ours, menu.getRequiredTricks(), theirs), top + 47);
     }
 
     // ------------------------------------------------------------------- editor ---
@@ -1319,9 +1349,34 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         return COMPASS[compass(seat)];
     }
 
-    /** Compass of a seat: where that player is sitting, not where the seat index falls. */
+    /**
+     * The world compass of {@code seat}: 0 north, 1 east, 2 south, 3 west, straight off the chair.
+     *
+     * <p>What stays absolute, and it is only the <em>naming</em>: the direction a seat is called in chat,
+     * on its plate, on the auction row and in the compass letters is all this value, so north is north
+     * for everyone and the game reads the same to all four players.
+     */
     private int compass(int seat) {
         return menu.getGame().compass(seat);
+    }
+
+    /**
+     * Where {@code seat}'s furniture is drawn — their hand, the plate pinned to it and their cell in the
+     * trick pile: the world compass rotated so the local player's own end of the table lands along the
+     * bottom edge.
+     *
+     * <p>Those three move together on purpose. A hand is only useful with its own name on it and its own
+     * card landing in front of it, so pulling the local fan to the bottom without the other two would
+     * leave a player reading a name in one place and a trick in another. What does not move is the
+     * wording — see {@link #compass}. See {@link BridgeGame#viewCompass}.
+     */
+    private int handCompass(int seat) {
+        return menu.getGame().viewCompass(seat, menu.getLocalSeat());
+    }
+
+    /** The N/E/S/W letter of a direction, clamped so a stray value still prints something. */
+    private static String compassLetter(int compass) {
+        return BridgeLayout.COMPASS_LETTERS[Math.floorMod(compass, BridgeGame.PLAYERS)];
     }
 
     private static int rgb(DyeColor color) {

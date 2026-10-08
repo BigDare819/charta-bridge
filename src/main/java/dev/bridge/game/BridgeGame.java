@@ -20,6 +20,8 @@ import dev.lucaargolo.charta.common.utils.CardImage;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
 import org.jetbrains.annotations.Nullable;
@@ -34,7 +36,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /**
  * Contract Bridge: a four seat, two-versus-two duplicate board played on Charta's public game API.
@@ -142,6 +148,51 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             Component.translatable("rule.bridge.vulnerable.description")
     );
 
+    /**
+     * How hard the bots play.
+     *
+     * <p>Last in the option list on purpose: {@code setRawOptions} is positional, so keeping it after
+     * the three booleans means every board saved before it existed still reads its three settings
+     * correctly and simply defaults this one.
+     */
+    private final BridgeStrength.Option BOT_STRENGTH = new BridgeStrength.Option(
+            BridgeStrength.NORMAL,
+            BridgeStrength.values(),
+            Component.translatable("rule.bridge.bot_strength"),
+            Component.translatable("rule.bridge.bot_strength.description")
+    );
+
+    /**
+     * Double-dummy post-mortem: solve the board with both sides playing perfectly and say so in chat.
+     *
+     * <p>Off by default because the solve is a real search (see {@link #startDoubleDummy()}) and costs
+     * seconds, and because a table that just wants to play does not need a verdict on a hand it has
+     * already left. Last in the option list for the same positional reason as {@link #BOT_STRENGTH}.
+     */
+    private final GameOption.Bool DOUBLE_DUMMY = new GameOption.Bool(
+            false,
+            Component.translatable("rule.bridge.double_dummy"),
+            Component.translatable("rule.bridge.double_dummy.description")
+    );
+
+    /**
+     * The deal as it was before a card was played, one bitmask per seat in {@link BridgeDoubleDummy}'s
+     * encoding, or {@code null} while a board is being dealt.
+     *
+     * <p>Necessary because the live hands are emptied into the piles as the board is played out: by the
+     * time the result is announced there is not a single card left in anybody's hand, and the whole
+     * point of a double-dummy solve is the deal you started with.
+     */
+    @Nullable
+    private long[] dealtHands;
+
+    /** One solve at a time: {@link BridgeDoubleDummy} keeps its whole state in statics. */
+    private static final ExecutorService DOUBLE_DUMMY_POOL = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "bridge-double-dummy");
+        thread.setDaemon(true);
+        return thread;
+    });
+
     /** Staging pile used while dealing. Not added as a slot, so it never renders. */
     private final GameSlot dealPile = new GameSlot();
     private final PileSlot trickPile;
@@ -200,11 +251,26 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     /** Guards against {@code runGame} stacking a second {@code afterPlay} on the same future. */
     private boolean awaitingPlay;
 
+    /**
+     * Identifies the turn an {@code afterPlay} callback was registered for.
+     *
+     * <p>Bumped on every registration, so a callback that fires for a turn that has already ended can be
+     * recognised and dropped; see {@link #staleCallback}. Also bumped on a re-deal, which throws away every
+     * future at once and would otherwise leave the last board's callbacks looking current.
+     */
+    private long turnToken;
+
     private int lingerTicks;
     @Nullable
     private Runnable afterLinger;
 
-    private record PlayedCard(int seat, Card card) {
+    /**
+     * One card of the trick currently on the table, and the seat that played it.
+     *
+     * <p>Public because {@link BridgePlay} walks the same list; the copy it hands around is a snapshot,
+     * so a rollout cannot disturb the live trick.
+     */
+    public record PlayedCard(int seat, Card card) {
     }
 
     public BridgeGame(List<CardPlayer> players, Deck deck) {
@@ -293,6 +359,49 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             }
         }
         return -1;
+    }
+
+    /**
+     * The seat whose furniture is drawn at drawn-compass {@code view}: the inverse of
+     * {@link #viewCompass} for one viewer.
+     *
+     * <p>The renderer walks the four pile cells by <em>screen position</em>, and it needs the player
+     * behind each one to light it up or drop a card in it, so it needs this direction rather than the
+     * forward one.
+     *
+     * @return the seat, or {@code -1} when nobody maps there
+     */
+    public int seatAtView(int view, int viewerSeat) {
+        for (int seat = 0; seat < players.size(); seat++) {
+            if (viewCompass(seat, viewerSeat) == Math.floorMod(view, PLAYERS)) {
+                return seat;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Where {@code seat}'s end of the table is drawn for a viewer sitting in {@code viewerSeat}: the same
+     * ring as {@link #compass}, rotated so the viewer's own end lands south.
+     *
+     * <p>Three things go through this together — the hand, the plate pinned to it and the seat's cell in
+     * the trick pile — because they only make sense as a set: a fan drawn at the bottom with its name and
+     * its trick still up north would be unreadable. What does not rotate is the <em>naming</em>: a seat is
+     * called by its {@link #compass} in chat, on its plate and in the auction row, and the pile cells are
+     * lettered from it, so north is north for everyone and the table reads the same to all four players.
+     *
+     * <p>Rotation is on the compass scale, not the seat scale, which is what keeps the ring intact: two
+     * seats that are neighbours around the table stay neighbours on the screen whatever the viewer's
+     * chair happens to be, so a defender's right-hand opponent is never drawn on the wrong side.
+     */
+    public int viewCompass(int seat, int viewerSeat) {
+        if (players.size() < PLAYERS) {
+            // Too few chairs for a ring to mean anything; fall back to the unrotated compass.
+            return compass(seat);
+        }
+        int viewer = compass(Math.floorMod(viewerSeat, players.size()));
+        // +2 so the viewer lands on 2, i.e. south: the bottom of the screen.
+        return Math.floorMod(compass(seat) - viewer + 2, PLAYERS);
     }
 
     /** Compass per seat, from the chairs the real players are sitting on; {@code -1} until filled in. */
@@ -389,6 +498,22 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     }
 
     /**
+     * The cards {@code player} can act with right now: their hand, plus the card they are carrying if a
+     * real player has one lifted.
+     *
+     * <p>{@code Game.getFullHand} is protected and {@code BridgePlay} lives outside the game's own
+     * hierarchy, so this is the public face of it.
+     */
+    public Stream<Card> fullHand(CardPlayer player) {
+        return getFullHand(player);
+    }
+
+    /** The hand slot of {@code player} without the carried-card fold; public for the same reason. */
+    public GameSlot handOf(CardPlayer player) {
+        return getPlayerHand(player);
+    }
+
+    /**
      * Seat that owes the next call or card.
      *
      * <p>Deliberately the <em>seat</em> and not {@code players.indexOf(currentPlayer)}: while the dummy
@@ -459,8 +584,9 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         }
         if (ENABLE_BOTS.get()) {
             int number = 1;
+            BridgeStrength strength = BOT_STRENGTH.get();
             while (players.size() < PLAYERS) {
-                players.add(new BridgeBot(number++));
+                players.add(new BridgeBot(number++, strength));
             }
         }
     }
@@ -513,7 +639,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
 
     @Override
     public List<GameOption<?>> getOptions() {
-        return List.of(SHOW_TRICK_COUNT, ENABLE_BOTS, VULNERABLE);
+        return List.of(SHOW_TRICK_COUNT, ENABLE_BOTS, VULNERABLE, BOT_STRENGTH, DOUBLE_DUMMY);
     }
 
     /**
@@ -584,11 +710,15 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         trickWinnerSeat = -1;
         pickupOwner = null;
         awaitingPlay = false;
+        // Every play future is replaced below, so nothing the previous board registered can still be
+        // considered current.
+        turnToken++;
         lingerTicks = 0;
         afterLinger = null;
         declarerSeat = -1;
         resultScore = 0;
         resultMade = null;
+        dealtHands = null;
         phase = Phase.DEALING;
 
         dealerSeat = players.isEmpty() ? 0 : random.nextInt(players.size());
@@ -655,6 +785,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         for (CardPlayer player : players) {
             sortHand(player);
         }
+        rememberDeal();
         phase = Phase.AUCTION;
         setCurrentPlayer(dealerSeat);
         table(Component.translatable("message.bridge.auction_started", playerAt(dealerSeat).getColoredName()));
@@ -662,21 +793,66 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         awaitCall();
     }
 
+    /**
+     * Waits for the seat on turn to call.
+     *
+     * <p>The seat and the bidder are captured <em>here</em> and handed to {@link #applyCall}, rather than
+     * read back off the live fields when the callback fires. Playing a card is what wakes the callback,
+     * and the future it runs on is a plain {@code CompletableFuture}: if anything else ever advances the
+     * turn before it fires, a live read would file this call under whoever the turn had moved on to.
+     * That is a call recorded at the wrong seat, which does not show up as an error anywhere — it shows up
+     * as the auction crediting somebody with a bid they never made, and therefore as the wrong person
+     * being declarer. Cheap to be exact about, so be exact about it.
+     *
+     * <p>{@link #turnToken} is the second half of the same idea: attaching a listener to a future does not
+     * promise it fires exactly once per turn, so a callback that arrives after the turn has already moved
+     * on is dropped whole — it does not touch the play future, the pending flag or the auction. See
+     * {@link #staleCallback}.
+     */
     private void awaitCall() {
         CardPlayer bidder = currentPlayer;
+        int bidderSeat = seat;
         if (bidder == null || phase != Phase.AUCTION) {
             return;
         }
+        long token = ++turnToken;
         awaitingPlay = true;
         bidder.afterPlay(play -> {
+            if (staleCallback(token, "call", bidderSeat)) {
+                return;
+            }
             awaitingPlay = false;
             bidder.resetPlay();
             if (phase != Phase.AUCTION) {
                 return;
             }
             // A bot encodes its call in the (card-less) play's slot; a null play means pass.
-            applyCall(play == null ? BridgeBid.PASS : play.slot());
+            applyCall(play == null ? BridgeBid.PASS : play.slot(), bidderSeat);
         });
+    }
+
+    /**
+     * {@code true} when this callback belongs to a turn that has already been played out, having logged
+     * which seat and which kind of turn it was.
+     *
+     * <p>One callback per turn is the assumption the whole turn loop rests on: {@code awaitingPlay}, the
+     * play future that gets replaced, and the seat the call is filed under all follow from "this turn
+     * ends exactly once". A listener on a {@code CompletableFuture} does not actually promise that — the
+     * future can be completed more than once, and a completion after the turn moved on would run the loop
+     * a second time for a seat that no longer has the turn. That second run is what the auction cannot
+     * absorb: it appends a call, and because a call's seat is its position in the list, everything after it
+     * is filed one seat out — which flips the partnerships of every later call and hands the contract to
+     * the wrong side. {@link #turnToken} leaves only the newest registration live: two listeners on one
+     * future would otherwise each run the loop, and a listener that fires after the turn moved on would
+     * run it a second time from a seat that no longer has the turn.
+     */
+    private boolean staleCallback(long token, String what, int seat) {
+        if (token == turnToken) {
+            return false;
+        }
+        dev.bridge.BridgeMod.LOGGER.warn("repeat {} callback for seat {} (turn {} superseded by {}) - ignored",
+                what, seat, token, turnToken);
+        return true;
     }
 
     /** Hands a call to the player on turn, from a menu click. */
@@ -687,26 +863,48 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         player.play(new GamePlay(List.of(), call));
     }
 
-    private void applyCall(int call) {
+    /**
+     * Files a call from the seat that is next to speak.
+     *
+     * <p>{@code speaker} is what the waiting callback believed the seat was; the seat actually recorded is
+     * the auction's own {@link Auction#nextSeat()}. Deriving it instead of trusting the caller means the
+     * seat a call is filed under and the seat {@link Auction#declarer()} later reads back out of the
+     * auction cannot drift apart -- they are the same expression. A disagreement is still worth a warning,
+     * because it can only mean a stale callback, and a stale callback is exactly the bug that looks like
+     * "the game declared for somebody who never bid that suit".
+     */
+    private void applyCall(int call, int speaker) {
         if (phase != Phase.AUCTION || isGameOver) {
             return;
         }
-        CardPlayer bidder = currentPlayer;
-        int from = seat;
+        int from = auction.nextSeat();
+        if (from != speaker) {
+            dev.bridge.BridgeMod.LOGGER.warn("call from seat {} but the auction is waiting on seat {} "
+                    + "(dealer {}, {} calls so far)", speaker, from, dealerSeat, auction.size());
+        }
+        CardPlayer bidder = playerAt(from);
 
         if (!auction.isLegal(call, from)) {
             table(Component.translatable("message.bridge.illegal_call", BridgeBid.name(call)));
             call = BridgeBid.PASS;
         }
-        auction.call(call, from);
+        if (!auction.call(call, from)) {
+            dev.bridge.BridgeMod.LOGGER.warn("auction refused call {} from seat {}", BridgeBid.label(call), from);
+        }
         table(Component.translatable("message.bridge.called", bidder.getColoredName(), BridgeBid.name(call)));
+        dev.bridge.BridgeMod.LOGGER.info("call {} from seat {} ({})", BridgeBid.label(call), from,
+                bidder.getName().getString());
 
         if (auction.isOver()) {
             concludeAuction();
             return;
         }
 
-        setCurrentPlayer(seatFrom(from, 1));
+        // Taken from the auction rather than from "one past the speaker": at a table that is not full the
+        // auction still runs a four seat cycle while the table wraps at the number of players present, so
+        // the two disagree. Both the seat a call is filed under and the seat it moves the turn to now come
+        // out of the same cycle.
+        setCurrentPlayer(auction.nextSeat());
         table(Component.translatable("message.charta.its_player_turn", currentPlayer.getColoredName()));
         awaitCall();
     }
@@ -719,6 +917,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         }
 
         declarerSeat = auction.declarer();
+        logAuction();
         phase = Phase.PLAY;
         table(Component.translatable("message.bridge.contract", contractName(), playerAt(declarerSeat).getColoredName()));
         if (auction.doubling() > 0) {
@@ -739,11 +938,18 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
 
     private void awaitCard() {
         CardPlayer actor = currentPlayer;
+        // The seat the card has to come out of. Not the actor's own seat while the dummy is on turn --
+        // see actorFor -- which is exactly why it is captured rather than derived from the actor later.
+        int actorSeat = seat;
         if (actor == null || phase != Phase.PLAY) {
             return;
         }
+        long token = ++turnToken;
         awaitingPlay = true;
         actor.afterPlay(play -> {
+            if (staleCallback(token, "play", actorSeat)) {
+                return;
+            }
             awaitingPlay = false;
             actor.resetPlay();
             if (phase != Phase.PLAY) {
@@ -752,19 +958,19 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             if (play == null || play.cards().isEmpty()) {
                 // Only reachable if a hand somehow empties early: keep the board moving.
                 table(Component.translatable("message.bridge.passed", actor.getColoredName()));
-                nextSeat();
+                nextSeat(actorSeat);
                 runGame();
                 return;
             }
 
             Card card = play.cards().getLast();
-            CardPlayer owner = playerAt(seat);
+            CardPlayer owner = playerAt(actorSeat);
             actor.playSound(ModSounds.CARD_PLAY.get());
 
             // The trick's first card is played by its leader, and the pile is drawn one cell per seat
             // clockwise from there, so the client needs that seat rather than the cards alone.
             if (currentTrick.isEmpty()) {
-                trickLeaderSeat = seat;
+                trickLeaderSeat = actorSeat;
                 trickWinnerSeat = -1;
             }
             pickupOwner = null;
@@ -782,13 +988,13 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             if (ledSuit == null) {
                 ledSuit = card.suit();
             }
-            currentTrick.add(new PlayedCard(seat, card));
+            currentTrick.add(new PlayedCard(actorSeat, card));
             syncTrickPile();
 
             if (currentTrick.size() >= players.size()) {
                 completeTrick();
             } else {
-                nextSeat();
+                nextSeat(actorSeat);
                 runGame();
             }
         });
@@ -819,9 +1025,48 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         }
     }
 
-    private void nextSeat() {
-        setCurrentPlayer(seatFrom(seat, 1));
+    /**
+     * Passes the turn to the seat after {@code from}.
+     *
+     * <p>Takes the seat rather than reading the field so a callback that captured its own seat keeps
+     * advancing from the seat it was registered for, the same way {@code awaitCard} uses it to find the
+     * hand to play out of.
+     */
+    private void nextSeat(int from) {
+        setCurrentPlayer(seatFrom(from, 1));
         table(Component.translatable("message.charta.its_player_turn", currentPlayer.getColoredName()));
+    }
+
+    /**
+     * One debug line per trick: who won it and what the two sides now hold.
+     *
+     * <p>Kept in the shipped build rather than behind {@code BRIDGE_DEBUG_SCREEN}, because a claim like
+     * "the defender count is right" is much easier to check against a log than off a screen that only
+     * lives for a second at a time. Only the {@code -Ddsh} case pays for it otherwise.
+     */
+    private void logTrickResult(int winner) {
+        dev.bridge.BridgeMod.LOGGER.debug("trick {} won by seat {} (declarer {}) - declarer {} / defenders {}",
+                trickNumber, winner, declarerSeat, sideTricks(declarerSeat), getDefenderTricks());
+    }
+
+    /**
+     * One line per concluded auction: the dealer, every call with the seat that made it, then the
+     * declarer the rule picked and the dummy that follows from it.
+     *
+     * <p>Worth keeping in the shipped build, because "the game credited me with a bid I never made" is
+     * only checkable against the call list — the table shows the same thing, but rotated, abbreviated and
+     * scrolled out of view, and by the time anybody counts the seats the board is over.
+     */
+    private void logAuction() {
+        StringBuilder calls = new StringBuilder();
+        for (int i = 0; i < auction.size(); i++) {
+            if (i > 0) {
+                calls.append(' ');
+            }
+            calls.append(auction.seatOf(i)).append(':').append(BridgeBid.label(auction.code(i)));
+        }
+        dev.bridge.BridgeMod.LOGGER.info("auction closed: dealer={} declarer={} dummy={} calls=[{}]",
+                dealerSeat, declarerSeat, getDummySeat(), calls);
     }
 
     private void completeTrick() {
@@ -838,6 +1083,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         // Published before the linger so the client can aim its collection animation at the winner;
         // the pile is still full at this point and stays full for the whole linger.
         trickWinnerSeat = winner;
+        logTrickResult(winner);
         table(Component.translatable("message.bridge.trick_won", winnerPlayer.getColoredName(), tricksTaken.get(winnerPlayer)));
 
         boolean last = trickNumber >= TRICKS;
@@ -952,24 +1198,31 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     public @Nullable GamePlay getBestPlay(CardPlayer player) {
         if (phase == Phase.AUCTION) {
             int bidder = getSeat(player);
-            return bidder < 0 ? null : new GamePlay(List.of(), BridgeBidding.choose(auction, player, bidder));
+            if (bidder < 0) {
+                return null;
+            }
+            return new GamePlay(List.of(), BridgeBidding.choose(auction, player, bidder, botStrength(player)));
         }
         if (phase != Phase.PLAY) {
             return null;
         }
         int slot = trickPile.getIndex();
-        CardPlayer owner = playerAt(seat);
-        for (Card card : getFullHand(owner).toList()) {
-            if (canPlay(player, new GamePlay(List.of(card), slot))) {
-                return new GamePlay(List.of(card), slot);
-            }
-        }
-        for (Card card : getFullHand(player).toList()) {
-            if (canPlay(player, new GamePlay(List.of(card), slot))) {
-                return new GamePlay(List.of(card), slot);
-            }
-        }
-        return null;
+        int ownerSeat = seat;
+        Card card = BridgePlay.choose(this, player, ownerSeat, botStrength(playerAt(ownerSeat)));
+        return card == null ? null : new GamePlay(List.of(card), slot);
+    }
+
+    /**
+     * Strength of the bot in {@code player}'s chair, defaulting to {@link BridgeStrength#NORMAL} for a
+     * caller that is not a bot at all.
+     *
+     * <p>Everything a real player does by hand goes through {@code canPlay}, not through here, so the
+     * only callers that matter are bots — both the {@link BridgeBot} the server built and the one the
+     * client rebuilt from the option bytes, which is why the value has to ride on the bot rather than be
+     * looked up from the game.
+     */
+    private BridgeStrength botStrength(@Nullable CardPlayer player) {
+        return player instanceof BridgeBot bot ? bot.getStrength() : BridgeStrength.NORMAL;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1059,7 +1312,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             return;
         }
         int declarerTricks = sideTricks(declarerSeat);
-        int defendersTricks = trickNumber - declarerTricks;
+        int defendersTricks = getDefenderTricks();
 
         table(Component.translatable("message.bridge.board_over", contractName(), declarerTricks, 6 + auction.level()));
 
@@ -1085,13 +1338,135 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
 
         table(Component.translatable("message.bridge.match_over", resultScore));
         isGameOver = true;
+        startDoubleDummy();
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Double-dummy post-mortem
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Freezes the deal so the double-dummy solver can still be given it once every card has been
+     * played. Hands are the only place the original deal lives and play empties them.
+     */
+    private void rememberDeal() {
+        if (players.size() != PLAYERS) {
+            dealtHands = null;
+            return;
+        }
+        long[] hands = new long[PLAYERS];
+        for (int seat = 0; seat < PLAYERS; seat++) {
+            for (Card card : getPlayerHand(players.get(seat)).getCards()) {
+                hands[seat] |= 1L << doubleDummyBit(card);
+            }
+        }
+        dealtHands = hands;
+    }
+
+    /**
+     * A card in {@link BridgeDoubleDummy}'s encoding: {@code bit = suit * 13 + (rank - 2)}, suits
+     * clubs to spades (the order {@link BridgeBid} walks them) and ranks two to ace.
+     */
+    private static int doubleDummyBit(Card card) {
+        // The registry hands out the ace as rank 1 and the two as rank 2, so the ace has to be moved
+        // to the top of the ladder before it lines up with the solver's 2..14.
+        int rank = card.rank() == Ranks.ACE ? 14 : card.rank().ordinal();
+        return BridgeBid.strainOf(card.suit()) * 13 + (rank - 2);
+    }
+
+    /**
+     * Solves the board that was just scored, with both sides playing optimally, and posts the answer
+     * to the whole table.
+     *
+     * <p>Off the server thread on purpose. A full deal is between roughly one and twenty seconds of
+     * search (the solver is a plain alpha-beta, not the quick-trick machine a real double-dummy engine
+     * uses), and the board deserves its "contract made" title immediately rather than after the
+     * search. One solve at a time, because the solver keeps every scrap of its state in statics.
+     *
+     * <p>The interesting part is that this is run on {@link #dealtHands} and not on the live hands: the
+     * deal is complete and independent of how the play actually went, which is exactly what makes it
+     * worth comparing against. Everything the message needs is captured before the future is handed
+     * off, because the table may already be dealing the next board by the time it finishes.
+     */
+    private void startDoubleDummy() {
+        if (!DOUBLE_DUMMY.get() || dealtHands == null || phase != Phase.RESULT) {
+            return;
+        }
+        if (declarerSeat < 0 || !auction.hasContract()) {
+            return;
+        }
+        MinecraftServer server = findServer();
+        if (server == null) {
+            // The client keeps a mirror of the game; only the logical server has anyone to tell.
+            return;
+        }
+
+        long[] hands = dealtHands.clone();
+        int trump = auction.strain();
+        int leader = seatFrom(declarerSeat, 1);
+        int declarerSide = (1 << declarerSeat) | (1 << seatFrom(declarerSeat, 2));
+        // Captured, not read back: by the time the search returns, this table may well be mid-deal and
+        // these fields will have moved on to the next board.
+        int required = 6 + auction.level();
+        int taken = sideTricks(declarerSeat);
+        Component contract = contractName();
+        Component declarer = playerAt(declarerSeat).getColoredName();
+
+        CompletableFuture
+                .supplyAsync(() -> BridgeDoubleDummy.tricksFor(hands, trump, leader, declarerSide),
+                        DOUBLE_DUMMY_POOL)
+                .thenAccept(tricks -> {
+                    boolean approximate = BridgeDoubleDummy.lastWasCapped();
+                    server.execute(() -> announceDoubleDummy(contract, declarer, tricks, required, taken,
+                            approximate));
+                });
+    }
+
+    private void announceDoubleDummy(Component contract, Component declarer, int tricks, int required,
+                                     int taken, boolean approximate) {
+        Component verdict = tricks >= required
+                ? Component.translatable("message.bridge.double_dummy_made")
+                : Component.translatable("message.bridge.double_dummy_down", required - tricks);
+        table(Component.translatable("message.bridge.double_dummy_result", contract, declarer, tricks,
+                required, verdict, taken,
+                approximate ? Component.translatable("message.bridge.double_dummy_approximate")
+                        : Component.empty()));
+    }
+
+    /** The logical server behind this table, or {@code null} on the client's mirror of the game. */
+    @Nullable
+    private MinecraftServer findServer() {
+        for (CardPlayer player : players) {
+            LivingEntity entity = player.getEntity();
+            if (entity instanceof ServerPlayer serverPlayer && serverPlayer.getServer() != null) {
+                return serverPlayer.getServer();
+            }
+        }
+        return null;
     }
 
     private int sideTricks(int side) {
-        if (side < 0) {
-            return 0;
+        if (side < 0 || players.size() < PLAYERS) {
+            // With an incomplete roster the +2 partner wraps onto the same seat, which would count every
+            // trick of that one player twice.
+            return side < 0 ? 0 : tricksTaken.getOrDefault(playerAt(side), 0);
         }
         return tricksTaken.getOrDefault(playerAt(side), 0) + tricksTaken.getOrDefault(playerAt(side + 2), 0);
+    }
+
+    /**
+     * Tricks the defending side has taken: everything that has been won, less the declaring side's share.
+     *
+     * <p>Derived rather than counted per player on purpose. {@link #tricksTaken} is keyed by
+     * {@code CardPlayer}, and {@code BridgeBot}'s deliberately lopsided {@code equals} makes that map a
+     * poor place to ask "which side won this"; going through {@link #sideTricks} with the declarer's seat
+     * keeps the parity arithmetic in the one place that also knows the partners are two seats apart.
+     */
+    public int getDefenderTricks() {
+        if (declarerSeat < 0) {
+            return 0;
+        }
+        return Math.max(0, trickNumber - sideTricks(declarerSeat));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1131,6 +1506,11 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         return auction.hasContract() ? 6 + auction.level() : 0;
     }
 
+    /** Tricks the declaring side has taken, i.e. declarer plus the dummy. */
+    public int getDeclarerTricks() {
+        return sideTricks(declarerSeat);
+    }
+
     public int getResultScore() {
         return resultScore;
     }
@@ -1160,6 +1540,22 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     /** Seat that took the trick on the table, or {@code -1} while it is still in progress. */
     public int getTrickWinnerSeat() {
         return trickWinnerSeat;
+    }
+
+    /** Suit that was led this trick, or {@code null} while the trick is still empty. */
+    @Nullable
+    public Suit getLedSuit() {
+        return ledSuit;
+    }
+
+    /** Strain of the contract, or {@code -1} before there is one; notrump is {@link BridgeBid#NOTRUMP}. */
+    public int getTrumpStrain() {
+        return trumpSuit() == null ? -1 : BridgeBid.strainOf(trumpSuit());
+    }
+
+    /** Cards of the trick on the table, oldest first. Read-only; a copy is fine for a caller to walk. */
+    public List<PlayedCard> getCurrentTrick() {
+        return List.copyOf(currentTrick);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1288,7 +1684,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             case SYNC_REQUIRED -> getRequiredTricks();
             case SYNC_TRUMP -> auction.hasContract() ? auction.strain() : -1;
             case SYNC_DECLARER_TRICKS -> sideTricks(declarerSeat);
-            case SYNC_DEFENDER_TRICKS -> declarerSeat < 0 ? 0 : trickNumber - sideTricks(declarerSeat);
+            case SYNC_DEFENDER_TRICKS -> getDefenderTricks();
             case SYNC_TRICK_NUMBER -> trickNumber;
             case SYNC_RESULT -> resultMade == null ? 0 : (resultMade ? 1 : -1);
             case SYNC_SCORE -> resultScore;

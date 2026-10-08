@@ -140,9 +140,12 @@ public final class BridgeDebug {
             ids[i + 1] = Integer.parseInt(BOT_IDS[i]);
         }
 
-        // options: [show trick count, fill empty seats with bots, declaring side vulnerable]
+        // options: [show trick count, fill empty seats with bots, declaring side vulnerable, bot strength
+        // (0 easy / 1 normal / 2 hard)]. Positional, so the newest option goes last; a short array is
+        // still valid -- setRawOptions just leaves the missing tail at its default -- but then the debug
+        // table silently runs whatever that default is.
         AbstractCardMenu.Definition definition = new AbstractCardMenu.Definition(
-                minecraft.player.blockPosition(), deck, ids, new byte[]{1, 1, 0});
+                minecraft.player.blockPosition(), deck, ids, new byte[]{1, 1, 0, 1});
 
         BridgeMenu menu = new BridgeMenu(0, minecraft.player.getInventory(), definition);
         screen = new BridgeScreen(menu, minecraft.player.getInventory(), Component.empty());

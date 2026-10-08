@@ -1,0 +1,19 @@
+== group1 ==
+OK P11.notrump-run-suit-2-3
+OK P11.notrump-run-suit-0-1
+passed=20 failed=0
+== windowcheck ==
+checked=36374280 bad=0
+== zero-sum (2 deals x 5 strains x 4 leaders x 2 sides) ==
+BAD deal0 trump=0 leader=3 a=7 b=4 sum=11 capped=true/true
+BAD deal0 trump=1 leader=3 a=7 b=4 sum=11 capped=true/true
+BAD deal0 trump=2 leader=2 a=9 b=3 sum=12 capped=true/false
+BAD deal0 trump=2 leader=3 a=7 b=4 sum=11 capped=true/true
+BAD deal0 trump=3 leader=3 a=11 b=2 sum=13 capped=false/true
+BAD deal0 trump=4 leader=2 a=9 b=2 sum=11 capped=true/true
+BAD deal0 trump=4 leader=3 a=7 b=0 sum=7 capped=true/true
+deal0 done
+BAD deal1 trump=2 leader=0 a=2 b=11 sum=13 capped=true/false
+BAD deal1 trump=2 leader=1 a=0 b=11 sum=11 capped=true/false
+deal1 done
+checked=40 bad=10 worst=32119ms

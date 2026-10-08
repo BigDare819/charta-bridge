@@ -14,7 +14,8 @@ import java.util.List;
  *
  * <p>That "seat equals dealer + index" identity is what keeps {@link #call} honest: a call is only ever
  * accepted from the seat that is next to speak, so the {@code seat} argument is checked rather than
- * remembered.
+ * remembered. The game goes one step further and asks the auction which seat is next instead of offering
+ * its own idea of it, which leaves exactly one place that can decide who is speaking.
  *
  * <h2>Declarer</h2>
  *
@@ -130,10 +131,17 @@ public final class Auction {
     /**
      * Records a call and advances the derived state.
      *
+     * <p>The seat is checked, not remembered: a call's seat is the dealer plus its position in the list
+     * ({@link #seatOf}), which is the identity the client relies on to rebuild the same auction from bare
+     * codes. Filing a call under any other seat would put the recorded position and the seat
+     * {@link #declarer()} reads back one apart for everything after it -- and because a partnership is a
+     * parity test, one seat apart flips which side every later call belongs to. That is enough to hand
+     * the contract, and the dummy with it, to the wrong partnership while still looking self-consistent.
+     *
      * @return {@code true} when the call was legal and has been recorded
      */
     public boolean call(int call, int seat) {
-        if (!isLegal(call, seat)) {
+        if (Math.floorMod(seat, 4) != nextSeat() || !isLegal(call, seat)) {
             return false;
         }
         codes.add(call);

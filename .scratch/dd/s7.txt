@@ -1,0 +1,24 @@
+﻿=== double-dummy harness (slow=false) ===
+
+-- group 1: hand-verified small positions --
+OK P1.forced-follow-0-1
+OK P1.forced-follow-2-3
+OK P2.ruff-beats-high-0-1
+OK P2.ruff-beats-high-2-3
+OK P3.discard-when-void-0-1
+OK P3.discard-when-void-2-3
+OK P4.over-ruff-highest-trump-0-1
+OK P4.over-ruff-highest-trump-2-3
+OK P5.winner-leads-next-0-1
+OK P5.winner-leads-next-2-3
+OK P6.notrump-0-1
+OK P6.notrump-2-3
+OK P7.notrump-duck-0-1
+OK P8.lose-lead-0-1
+OK P8.lose-lead-2-3
+OK P9.lose-lead-3trick-0-1
+OK P10.take-all-3trick-0-1
+OK P10.take-all-3trick-2-3
+OK P11.notrump-run-suit-2-3
+OK P11.notrump-run-suit-0-1
+passed=20 failed=0

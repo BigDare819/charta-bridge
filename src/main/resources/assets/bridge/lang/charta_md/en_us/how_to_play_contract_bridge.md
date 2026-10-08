@@ -43,6 +43,9 @@ The side that bid highest owns the contract:
   **dummy**. The dummy's hand is turned **face up for everybody** and gets a yellow frame; while the
   dummy is on turn, **declarer plays the dummy's cards** by clicking them. Nobody else may touch them,
   not even the dummy.
+* **Who is declarer**: not the player who made the last bid, but the first player of the winning side to
+  name the winning strain. Open 1H and let partner jump to 4H, and the contract is 4H by *you*, with
+  partner as the dummy. The final bid does not move the declarer.
 * **Defenders**: the other two. The player to declarer's left leads the first trick.
 * To play: click a card in your own (or the dummy's) hand so it lifts, then click the pile.
 * **Follow suit**: if you still hold the suit that was led you must play it; only then may you discard
@@ -66,6 +69,12 @@ Shift-click the cog on the game selection screen:
 * **Fill empty seats with bots**: on by default, so one person can start a table. Turn it off to
   require four real players.
 * **Vulnerable declaring side**: score the board as vulnerable, with bigger bonuses and penalties.
+* **Bot strength**: Easy, Normal or Hard; click to cycle. Easy follows suit and bids on points alone,
+  Hard rolls the trick out and hunts slams.
+* **Double-dummy post-mortem**: off by default. With it on, every finished board is solved again with
+  both sides playing perfectly, and the double-dummy result is posted to chat: how many tricks the
+  declaring side can take, how many the contract needs, and whether it should have made. The search
+  runs in the background and never changes the play.
 
 ## Rearranging the table
 

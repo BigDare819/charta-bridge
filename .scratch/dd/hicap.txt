@@ -1,0 +1,6 @@
+deal0 trump=0 a=7 b=6 sum=13 ok 1153ms hits=635100 miss=1486584
+deal1 trump=1 a=6 b=7 sum=13 ok 6078ms hits=4021822 miss=8481050
+deal2 trump=2 a=5 b=8 sum=13 ok 20556ms hits=9850752 miss=21257366
+deal3 trump=3 a=10 b=3 sum=13 ok 8265ms hits=2753163 miss=5811180
+deal4 trump=4 a=7 b=6 sum=13 ok 6140ms hits=3201315 miss=6556865
+worst=20556ms totalNodes=64056100

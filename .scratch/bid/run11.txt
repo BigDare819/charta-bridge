@@ -1,0 +1,35 @@
+﻿OK   balanced 15 opens 1NT -> 1NT
+OK   five card major before a longer minor -> 1S
+OK   weak two on a six card suit -> 2S
+OK   22 points is a strong 2C -> 2C
+OK   better minor -> 1D
+OK   seven card suit and 10 points pre-empts -> 3D
+OK   responder names the four card major -> 1S
+OK   a fit and 11 points reaches game -> 4H
+OK   a single raise is not forced to game -> 2H
+OK   transfer, completion, then game -> 4H
+OK   Jacoby 2NT reaches game -> 4H
+OK   a strong fit with controls reaches a slam -> 6S
+OK   29 combined is not a grand slam -> 3NT
+OK   a partscore deal stays low -> 1NT
+SCRIPTED-TRACE
+N(14) 1H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 2NT   J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 3H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 4H    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) Pass  7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+OK   an overcall is made -> 1S
+OK   the opening is raised -> 3H
+OK   and the overcall is raised too -> 3S
+OK   a takeout double of a minor opening -> X
+EASY    400 deals | passout   2 | 7-level   0 (  0.0%) | 6-level   0 | 5-level  17 | 3-4 level 161 | 1-2 level 220
+NORMAL  400 deals | passout   5 | 7-level   0 (  0.0%) | 6-level  18 | 5-level  51 | 3-4 level 209 | 1-2 level 117
+HARD    400 deals | passout   5 | 7-level   0 (  0.0%) | 6-level  21 | 5-level  48 | 3-4 level 202 | 1-2 level 124
+
+checks = 1271, failures = 0
+ALL OK

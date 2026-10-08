@@ -1,0 +1,342 @@
+﻿OK   balanced 15 opens 1NT -> 1NT
+OK   five card major before a longer minor -> 1S
+OK   weak two on a six card suit -> 2S
+OK   22 points is a strong 2C -> 2C
+OK   better minor -> 1D
+OK   seven card suit and 10 points pre-empts -> 3D
+OK   responder names the four card major -> 1S
+OK   a fit and 11 points reaches game -> 4H
+OK   a single raise is not forced to game -> 2H
+OK   transfer, completion, then game -> 4H
+OK   a strong fit with controls reaches a slam -> 7S
+OK   29 combined is not a grand slam -> 3NT
+OK   a partscore deal stays low -> 1NT
+SCRIPTED-TRACE
+N(14) 1H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 2NT   J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 3H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 4H    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 4NT   7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 5D    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 6H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 7H    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) Pass  7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+OK   an overcall is made -> 1S
+OK   the opening is raised -> 3H
+OK   and the overcall is raised too -> 3S
+OK   a takeout double of a minor opening -> X
+  --- grand EASY dealer E combined 26 : 2H 2S Pass 3D Pass 3S Pass 4D Pass 4S Pass 5D Pass 5S Pass 6D Pass 6S Pass 7D Pass 7S Pass Pass Pass
+E( 6) 2H    68TQ 85J7K263 5
+S(11) 2S    239JK7 Q J 9KT8J
+W( 8) Pass  A45 A9T4 2964 25
+N(15) 3D    TQK387A 3A746Q
+E( 6) Pass  68TQ 85J7K263 5
+S(11) 3S    239JK7 Q J 9KT8J
+W( 8) Pass  A45 A9T4 2964 25
+N(15) 4D    TQK387A 3A746Q
+E( 6) Pass  68TQ 85J7K263 5
+S(11) 4S    239JK7 Q J 9KT8J
+W( 8) Pass  A45 A9T4 2964 25
+N(15) 5D    TQK387A 3A746Q
+E( 6) Pass  68TQ 85J7K263 5
+S(11) 5S    239JK7 Q J 9KT8J
+W( 8) Pass  A45 A9T4 2964 25
+N(15) 6D    TQK387A 3A746Q
+E( 6) Pass  68TQ 85J7K263 5
+S(11) 6S    239JK7 Q J 9KT8J
+W( 8) Pass  A45 A9T4 2964 25
+N(15) 7D    TQK387A 3A746Q
+E( 6) Pass  68TQ 85J7K263 5
+S(11) 7S    239JK7 Q J 9KT8J
+W( 8) Pass  A45 A9T4 2964 25
+N(15) Pass  TQK387A 3A746Q
+E( 6) Pass  68TQ 85J7K263 5
+  --- grand EASY dealer N combined 21 : 2D Pass 2NT Pass 3D Pass 3NT X 4D Pass 4NT X 5D Pass 5NT X 6D Pass 6NT X 7D Pass 7NT X Pass Pass Pass
+N( 6) 2D    5TJ8 48T 4J8Q7 Q
+E( 7) Pass  7 732 2 K9T4A538
+S(15) 2NT   K92 A9K5 9A6 76J
+W(12) Pass  43A6Q QJ6 K5T3 2
+N( 6) 3D    5TJ8 48T 4J8Q7 Q
+E( 7) Pass  7 732 2 K9T4A538
+S(15) 3NT   K92 A9K5 9A6 76J
+W(12) X     43A6Q QJ6 K5T3 2
+N( 6) 4D    5TJ8 48T 4J8Q7 Q
+E( 7) Pass  7 732 2 K9T4A538
+S(15) 4NT   K92 A9K5 9A6 76J
+W(12) X     43A6Q QJ6 K5T3 2
+N( 6) 5D    5TJ8 48T 4J8Q7 Q
+E( 7) Pass  7 732 2 K9T4A538
+S(15) 5NT   K92 A9K5 9A6 76J
+W(12) X     43A6Q QJ6 K5T3 2
+N( 6) 6D    5TJ8 48T 4J8Q7 Q
+E( 7) Pass  7 732 2 K9T4A538
+S(15) 6NT   K92 A9K5 9A6 76J
+W(12) X     43A6Q QJ6 K5T3 2
+N( 6) 7D    5TJ8 48T 4J8Q7 Q
+E( 7) Pass  7 732 2 K9T4A538
+S(15) 7NT   K92 A9K5 9A6 76J
+W(12) X     43A6Q QJ6 K5T3 2
+N( 6) Pass  5TJ8 48T 4J8Q7 Q
+E( 7) Pass  7 732 2 K9T4A538
+S(15) Pass  K92 A9K5 9A6 76J
+  --- grand EASY dealer S combined 22 : 1S 2C Pass 2H Pass 3C Pass 3H X 4C Pass 4H X 5C Pass 5H X 6C Pass 6H X 7C Pass 7H X Pass Pass Pass
+S(13) 1S    JKT37 JQK 6T2K T
+W(10) 2C    4Q 56 4AJ 29746K
+N( 5) Pass  926 879 738 A85J
+E(12) 2H    58A 43TA2 59Q Q3
+S(13) Pass  JKT37 JQK 6T2K T
+W(10) 3C    4Q 56 4AJ 29746K
+N( 5) Pass  926 879 738 A85J
+E(12) 3H    58A 43TA2 59Q Q3
+S(13) X     JKT37 JQK 6T2K T
+W(10) 4C    4Q 56 4AJ 29746K
+N( 5) Pass  926 879 738 A85J
+E(12) 4H    58A 43TA2 59Q Q3
+S(13) X     JKT37 JQK 6T2K T
+W(10) 5C    4Q 56 4AJ 29746K
+N( 5) Pass  926 879 738 A85J
+E(12) 5H    58A 43TA2 59Q Q3
+S(13) X     JKT37 JQK 6T2K T
+W(10) 6C    4Q 56 4AJ 29746K
+N( 5) Pass  926 879 738 A85J
+E(12) 6H    58A 43TA2 59Q Q3
+S(13) X     JKT37 JQK 6T2K T
+W(10) 7C    4Q 56 4AJ 29746K
+N( 5) Pass  926 879 738 A85J
+E(12) 7H    58A 43TA2 59Q Q3
+S(13) X     JKT37 JQK 6T2K T
+W(10) Pass  4Q 56 4AJ 29746K
+N( 5) Pass  926 879 738 A85J
+E(12) Pass  58A 43TA2 59Q Q3
+EASY    400 deals | passout   2 | 7-level  79 ( 19.8%) | 6-level   0 | 5-level  36 | 3-4 level 107 | 1-2 level 176
+  --- grand NORMAL dealer S combined 22 : 1H Pass 1S 2D 2H Pass Pass 3D 3NT Pass Pass X 4H Pass Pass X 5H Pass Pass X 6H Pass Pass X 7H Pass Pass X Pass Pass Pass
+S(14) 1H    J374QA 24J 5JQK
+W( 7) Pass  A23K 26895 93 72
+N( 8) 1S    T5J89 TK 786 T4A
+E(11) 2D    76Q4  Q5KTA 8639
+S(14) 2H    J374QA 24J 5JQK
+W( 7) Pass  A23K 26895 93 72
+N( 8) Pass  T5J89 TK 786 T4A
+E(11) 3D    76Q4  Q5KTA 8639
+S(14) 3NT   J374QA 24J 5JQK
+W( 7) Pass  A23K 26895 93 72
+N( 8) Pass  T5J89 TK 786 T4A
+E(11) X     76Q4  Q5KTA 8639
+S(14) 4H    J374QA 24J 5JQK
+W( 7) Pass  A23K 26895 93 72
+N( 8) Pass  T5J89 TK 786 T4A
+E(11) X     76Q4  Q5KTA 8639
+S(14) 5H    J374QA 24J 5JQK
+W( 7) Pass  A23K 26895 93 72
+N( 8) Pass  T5J89 TK 786 T4A
+E(11) X     76Q4  Q5KTA 8639
+S(14) 6H    J374QA 24J 5JQK
+W( 7) Pass  A23K 26895 93 72
+N( 8) Pass  T5J89 TK 786 T4A
+E(11) X     76Q4  Q5KTA 8639
+S(14) 7H    J374QA 24J 5JQK
+W( 7) Pass  A23K 26895 93 72
+N( 8) Pass  T5J89 TK 786 T4A
+E(11) X     76Q4  Q5KTA 8639
+S(14) Pass  J374QA 24J 5JQK
+W( 7) Pass  A23K 26895 93 72
+N( 8) Pass  T5J89 TK 786 T4A
+  --- grand NORMAL dealer W combined 27 : 1C Pass 1S 2H 2S Pass 2NT Pass 4NT Pass 5D Pass 6S Pass 7S Pass Pass Pass
+W(14) 1C    K5Q9 J9 A76 A48T
+N( 5) Pass  467 T 3K5Q9 5379
+E(13) 1S    83JT2 4QA6 T QKJ
+S( 8) 2H    A 58273K 248J 62
+W(14) 2S    K5Q9 J9 A76 A48T
+N( 5) Pass  467 T 3K5Q9 5379
+E(13) 2NT   83JT2 4QA6 T QKJ
+S( 8) Pass  A 58273K 248J 62
+W(14) 4NT   K5Q9 J9 A76 A48T
+N( 5) Pass  467 T 3K5Q9 5379
+E(13) 5D    83JT2 4QA6 T QKJ
+S( 8) Pass  A 58273K 248J 62
+W(14) 6S    K5Q9 J9 A76 A48T
+N( 5) Pass  467 T 3K5Q9 5379
+E(13) 7S    83JT2 4QA6 T QKJ
+S( 8) Pass  A 58273K 248J 62
+W(14) Pass  K5Q9 J9 A76 A48T
+N( 5) Pass  467 T 3K5Q9 5379
+  --- grand NORMAL dealer E combined 24 : 1S Pass 2D Pass 3C Pass Pass X 3NT Pass Pass X 5C Pass Pass X 6C Pass Pass X 7C Pass Pass X Pass Pass Pass
+E(14) 1S    92KA 8 3A7 K325T
+S( 7) Pass  37J56 QKJT56 64
+W(10) 2D    8T 34A7 JKQ5T 67
+N( 9) Pass  4Q 29 829 8QJA94
+E(14) 3C    92KA 8 3A7 K325T
+S( 7) Pass  37J56 QKJT56 64
+W(10) Pass  8T 34A7 JKQ5T 67
+N( 9) X     4Q 29 829 8QJA94
+E(14) 3NT   92KA 8 3A7 K325T
+S( 7) Pass  37J56 QKJT56 64
+W(10) Pass  8T 34A7 JKQ5T 67
+N( 9) X     4Q 29 829 8QJA94
+E(14) 5C    92KA 8 3A7 K325T
+S( 7) Pass  37J56 QKJT56 64
+W(10) Pass  8T 34A7 JKQ5T 67
+N( 9) X     4Q 29 829 8QJA94
+E(14) 6C    92KA 8 3A7 K325T
+S( 7) Pass  37J56 QKJT56 64
+W(10) Pass  8T 34A7 JKQ5T 67
+N( 9) X     4Q 29 829 8QJA94
+E(14) 7C    92KA 8 3A7 K325T
+S( 7) Pass  37J56 QKJT56 64
+W(10) Pass  8T 34A7 JKQ5T 67
+N( 9) X     4Q 29 829 8QJA94
+E(14) Pass  92KA 8 3A7 K325T
+S( 7) Pass  37J56 QKJT56 64
+W(10) Pass  8T 34A7 JKQ5T 67
+NORMAL  400 deals | passout   5 | 7-level  30 (  7.5%) | 6-level  13 | 5-level  92 | 3-4 level 177 | 1-2 level  83
+  --- grand HARD dealer S combined 21 : 1H 2C 2H 3C 4NT 5C 5D Pass 6H Pass 7D Pass 7H Pass Pass Pass
+S(19) 1H    4A8 A5J6Q 3KJA 2
+W( 8) 2C    Q6K7 9 287 9K486
+N( 2) 2H    59 7T4 5QT64 T53
+E(11) 3C    T32J 23K8 9 AQ7J
+S(19) 4NT   4A8 A5J6Q 3KJA 2
+W( 8) 5C    Q6K7 9 287 9K486
+N( 2) 5D    59 7T4 5QT64 T53
+E(11) Pass  T32J 23K8 9 AQ7J
+S(19) 6H    4A8 A5J6Q 3KJA 2
+W( 8) Pass  Q6K7 9 287 9K486
+N( 2) 7D    59 7T4 5QT64 T53
+E(11) Pass  T32J 23K8 9 AQ7J
+S(19) 7H    4A8 A5J6Q 3KJA 2
+W( 8) Pass  Q6K7 9 287 9K486
+N( 2) Pass  59 7T4 5QT64 T53
+E(11) Pass  T32J 23K8 9 AQ7J
+  --- grand HARD dealer E combined 35 : Pass 1H Pass 4H Pass 4NT Pass 5H Pass 6H Pass 7D Pass 7H Pass Pass Pass
+E( 3) Pass  2TQ5 3T49 63J 65
+S(17) 1H    K A72J6 T4A5 QK7
+W( 2) Pass  3496J 8 72 2T9J4
+N(18) 4H    8A7 KQ5 8QK9 3A8
+E( 3) Pass  2TQ5 3T49 63J 65
+S(17) 4NT   K A72J6 T4A5 QK7
+W( 2) Pass  3496J 8 72 2T9J4
+N(18) 5H    8A7 KQ5 8QK9 3A8
+E( 3) Pass  2TQ5 3T49 63J 65
+S(17) 6H    K A72J6 T4A5 QK7
+W( 2) Pass  3496J 8 72 2T9J4
+N(18) 7D    8A7 KQ5 8QK9 3A8
+E( 3) Pass  2TQ5 3T49 63J 65
+S(17) 7H    K A72J6 T4A5 QK7
+W( 2) Pass  3496J 8 72 2T9J4
+N(18) Pass  8A7 KQ5 8QK9 3A8
+E( 3) Pass  2TQ5 3T49 63J 65
+  --- grand HARD dealer E combined 23 : 1S Pass 2H 3D 3S Pass Pass X 3NT Pass Pass X 4S Pass Pass X 5S Pass Pass X 6S Pass Pass X 7S Pass Pass X Pass Pass Pass
+E(11) 1S    98KT76 A4 93AT 4
+S( 5) Pass  245A 36 6 T678J9
+W( 6) 2H    Q 87295T Q5 5Q32
+N(18) 3D    J3 QJK J7K824 AK
+E(11) 3S    98KT76 A4 93AT 4
+S( 5) Pass  245A 36 6 T678J9
+W( 6) Pass  Q 87295T Q5 5Q32
+N(18) X     J3 QJK J7K824 AK
+E(11) 3NT   98KT76 A4 93AT 4
+S( 5) Pass  245A 36 6 T678J9
+W( 6) Pass  Q 87295T Q5 5Q32
+N(18) X     J3 QJK J7K824 AK
+E(11) 4S    98KT76 A4 93AT 4
+S( 5) Pass  245A 36 6 T678J9
+W( 6) Pass  Q 87295T Q5 5Q32
+N(18) X     J3 QJK J7K824 AK
+E(11) 5S    98KT76 A4 93AT 4
+S( 5) Pass  245A 36 6 T678J9
+W( 6) Pass  Q 87295T Q5 5Q32
+N(18) X     J3 QJK J7K824 AK
+E(11) 6S    98KT76 A4 93AT 4
+S( 5) Pass  245A 36 6 T678J9
+W( 6) Pass  Q 87295T Q5 5Q32
+N(18) X     J3 QJK J7K824 AK
+E(11) 7S    98KT76 A4 93AT 4
+S( 5) Pass  245A 36 6 T678J9
+W( 6) Pass  Q 87295T Q5 5Q32
+N(18) X     J3 QJK J7K824 AK
+E(11) Pass  98KT76 A4 93AT 4
+S( 5) Pass  245A 36 6 T678J9
+W( 6) Pass  Q 87295T Q5 5Q32
+HARD    400 deals | passout   5 | 7-level  34 (  8.5%) | 6-level  15 | 5-level  97 | 3-4 level 173 | 1-2 level  76
+
+checks = 1412, failures = 71
+
+FAILED: Jacoby 2NT reaches game: wanted 4H, got 7H after 1H Pass 2NT Pass 3H Pass 4H Pass 4NT Pass 5D Pass 6H Pass 7H Pass Pass Pass
+FAILED: a grand slam has the points (EASY deal 12) (grand slam on 21 combined points)
+FAILED: a grand slam has the points (EASY deal 14) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (EASY deal 32) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (EASY deal 36) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 42) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 67) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 75) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (EASY deal 84) (grand slam on 21 combined points)
+FAILED: a grand slam has the points (EASY deal 89) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 91) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 93) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 104) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 109) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (EASY deal 115) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 125) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 129) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 140) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (EASY deal 147) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 149) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 180) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 187) (grand slam on 20 combined points)
+FAILED: a grand slam has the points (EASY deal 192) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 196) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 216) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 224) (grand slam on 21 combined points)
+FAILED: a grand slam has the points (EASY deal 231) (grand slam on 21 combined points)
+FAILED: a grand slam has the points (EASY deal 242) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 244) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 250) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 265) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 269) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (EASY deal 274) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (EASY deal 286) (grand slam on 21 combined points)
+FAILED: a grand slam has the points (EASY deal 291) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 299) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 334) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 337) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 342) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 344) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (EASY deal 377) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (EASY deal 382) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (EASY deal 384) (grand slam on 23 combined points)
+FAILED: EASY does not blast grand slams (19.75% of auctions ended in a grand slam)
+FAILED: a grand slam has the points (NORMAL deal 10) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (NORMAL deal 61) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (NORMAL deal 84) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (NORMAL deal 105) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (NORMAL deal 130) (grand slam on 21 combined points)
+FAILED: a slam has the points (NORMAL deal 155) (slam on 21 combined points)
+FAILED: a slam has the points (NORMAL deal 168) (slam on 21 combined points)
+FAILED: a grand slam has the points (NORMAL deal 216) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (NORMAL deal 224) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (NORMAL deal 227) (grand slam on 22 combined points)
+FAILED: a slam has the points (NORMAL deal 247) (slam on 20 combined points)
+FAILED: a grand slam has the points (NORMAL deal 248) (grand slam on 21 combined points)
+FAILED: a grand slam has the points (NORMAL deal 285) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (NORMAL deal 303) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (NORMAL deal 316) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (NORMAL deal 334) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (NORMAL deal 362) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (HARD deal 18) (grand slam on 21 combined points)
+FAILED: a grand slam has the points (HARD deal 61) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (HARD deal 85) (grand slam on 21 combined points)
+FAILED: a grand slam has the points (HARD deal 128) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (HARD deal 135) (grand slam on 24 combined points)
+FAILED: a grand slam has the points (HARD deal 179) (grand slam on 22 combined points)
+FAILED: a grand slam has the points (HARD deal 264) (grand slam on 25 combined points)
+FAILED: a grand slam has the points (HARD deal 314) (grand slam on 23 combined points)
+FAILED: a grand slam has the points (HARD deal 325) (grand slam on 20 combined points)
+FAILED: a grand slam has the points (HARD deal 357) (grand slam on 22 combined points)

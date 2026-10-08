@@ -46,6 +46,10 @@ The auction, the play, the scoring and the screen's controls are all described i
 * **Play** — declarer's left hand opponent leads; follow suit when you can; trump beats everything.
 * **The dummy** — face up for the whole table with a yellow frame, and played by declarer. Nobody else
   may touch those cards, not even the dummy.
+* **Who is declarer** — not the player who made the last bid, but the first player of the winning
+  *partnership* who named the winning strain. If you open 1♥ and partner later jumps to 4♥, the
+  contract is 4♥ by you even though partner supplied the final bid, and partner is the dummy. That is
+  the rule of the game, not an accident.
 * **Scoring** — duplicate scoring: contract points, game and slam bonuses, undertrick penalties, and
   the doubled and redoubled tables.
 * **Trick counter and vulnerability** — both optional game rules, off/on as you like.
@@ -57,6 +61,31 @@ Shift-click the cog on the game selection screen:
 * **Show trick counter** — which trick of the thirteen is being played.
 * **Fill empty seats with bots** — on by default.
 * **Vulnerable declaring side** — score the board as vulnerable.
+* **Bot strength** — **Easy**, **Normal** or **Hard**, click to cycle.
+  * *Easy* follows suit and bids on high card points alone.
+  * *Normal* plays to the seat and the trick (second hand low, third hand high, the cheapest winner, a
+    ruff only when it holds) and bids a real system, slams included.
+  * *Hard* rolls the rest of the trick out against every legal card before choosing one, and hunts
+    slams and penalties in the auction.
+* **Double-dummy post-mortem** — off by default. With it on, every finished board is solved again with
+  both sides playing perfectly (as if all four hands were face up) and the answer is posted to chat for
+  everyone: how many tricks the declaring side can take double dummy, how many the contract needs, and
+  whether it should have made. The search takes a few seconds and runs off the server thread, so the
+  board still ends on time; it never changes the play.
+
+## Your own end of the table is at the bottom
+
+The seat *names* never change: north is north in chat, on the plates and on the auction row for everyone,
+and the chairs hold their directions. What moves is your own end of the table — your hand is laid along
+the bottom edge in front of you, your name plate follows it, and your card in the trick pile lands in the
+cell in front of your fan. So the close hand is always the one you actually play, and the trick reads from
+your side.
+
+The letters on the four pile cells are still world directions, so the cell you play from stays labelled
+with whoever is sitting there.
+
+The count beside your own name plate is your high card points. The other three hands are hidden, so a
+number beside them would only be a guess.
 
 ## Rearranging the table
 

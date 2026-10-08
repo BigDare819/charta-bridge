@@ -115,9 +115,30 @@ public final class BridgeBid {
         return Component.literal(glyph(strain(code))).withStyle(BridgeMod.SUITS);
     }
 
+    /**
+     * A call as plain ASCII, for logs: {@code Pass}, {@code X}, {@code XX}, {@code 4H}, {@code 3NT}.
+     *
+     * <p>{@link #name} is built for the screen and carries the private-use notrump glyph, which a console
+     * renders as a tofu box. Same information, no font.
+     */
+    public static String label(int code) {
+        if (code == PASS) {
+            return "Pass";
+        }
+        if (code == DOUBLE) {
+            return "X";
+        }
+        if (code == REDOUBLE) {
+            return "XX";
+        }
+        return level(code) + STRAIN_LABELS[strain(code)];
+    }
+
+    /** Strain names for {@link #label}, indexed by strain. */
+    private static final String[] STRAIN_LABELS = {"C", "D", "H", "S", "NT"};
+
     /** The glyph for a strain, in the {@code bridge:suit} font. */
-    public static String glyph(int strain) {
-        return switch (strain) {
+    public static String glyph(int strain) {        return switch (strain) {
             case 0 -> "\u2663";   // clubs
             case 1 -> "\u2666";   // diamonds
             case 2 -> "\u2665";   // hearts

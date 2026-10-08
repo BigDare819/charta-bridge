@@ -58,15 +58,36 @@ public class BridgeMenu extends AbstractCardMenu<BridgeGame, BridgeMenu> {
     public static final int PILE_Y = 62;
 
     /**
-     * Seat of each hand slot, as registered by the constructor and expected by the layout: seats
-     * {@code 0, 3, 1, 2} in slot order, i.e. north and south seats first because those are the two
-     * fans and are the two that want to be drawn on top.
+     * Seat of each hand slot, in slot order, <em>relative to the local player</em>: their own chair
+     * first, then clockwise around the table.
      *
-     * <p>This is a <em>seat</em> order, so it is stable for a whole board; which on-screen chair each
-     * slot is then put in is decided by that seat's compass, which the roster's random rotation makes
-     * different from its index -- see {@code BridgeGame#compass} and {@code BridgeLayout#apply}.
+     * <p>{@code 0, 3, 1, 2} is that ring written as offsets from whoever is looking: own seat, the
+     * opponent on their right, the opponent on their left, partner opposite. The local player's own hand
+     * is therefore always the first slot, and {@link BridgeGame#viewCompass} always draws the first slot
+     * south — the bottom edge, in front of the player whose hand it is.
+     *
+     * <p>Contrast with the compass: a seat's <em>compass</em> is where its chair is in the world and is
+     * the same for everyone, while this is a rotation of it and differs per viewer. Only the hands go
+     * through it; the name plates and the pile stay on the world compass, so the table itself does not
+     * turn (see {@code BridgeGame#viewCompass}).
      */
     public static final int[] HAND_ORDER = {0, 3, 1, 2};
+
+    /**
+     * The seats behind the hand slots, in slot order: {@link #HAND_ORDER} rotated onto the local seat.
+     *
+     * <p>Slot {@code 1 + i} belongs to {@code seats()[i]}, and the menu's constructor and
+     * {@code BridgeLayout#apply} both walk this list, so the slot order and the elements written into
+     * those slots can never drift apart.
+     */
+    public int[] seats() {
+        int local = getLocalSeat();
+        int[] seats = new int[HAND_ORDER.length];
+        for (int i = 0; i < HAND_ORDER.length; i++) {
+            seats[i] = Math.floorMod(local + HAND_ORDER[i], HAND_ORDER.length);
+        }
+        return seats;
+    }
 
     /** Values pushed by the server, indexed exactly like {@link BridgeGame#syncValue(int)}. */
     private final int[] mirror = new int[BridgeGame.SYNC_SIZE];
@@ -128,9 +149,9 @@ public class BridgeMenu extends AbstractCardMenu<BridgeGame, BridgeMenu> {
         // writes for it.
         addCardSlot(new CardSlot<>(this.game, game -> game.getSlot(0), PILE_X, PILE_Y, CardSlot.Type.PREVIEW));
 
-        // Seats in HAND_ORDER, i.e. north, west, east, south -- the local hand is one of them and lands
-        // in its own chair rather than being forced to the bottom of the screen.
-        for (int seat : HAND_ORDER) {
+        // Seats in the viewer's own ring order -- own chair, right-hand opponent, left-hand opponent,
+        // partner -- so the local fan always lands on the bottom element and the dummy opposite it.
+        for (int seat : seats()) {
             addCardSlot(seatSlot(seat));
         }
 
@@ -141,17 +162,17 @@ public class BridgeMenu extends AbstractCardMenu<BridgeGame, BridgeMenu> {
     /**
      * The hand of {@code seat}: the local player's own fan if it is theirs, otherwise a side-on view.
      *
-     * <p>The shape follows the seat's compass direction, not its distance from the local player. North
-     * and south are horizontal fans at the top and bottom of the table, west and east are upright
-     * columns at its sides, so a player sitting east gets their own hand as a column -- which is what
-     * "everyone sees the same table" costs and buys.
+     * <p>The shape follows the seat's <em>drawn</em> position — {@link BridgeGame#viewCompass} against
+     * the local seat — not its compass in the world. That is what makes the local player's hand a fan
+     * along the bottom edge whatever chair they took, and their partner's the opposite fan; the two
+     * remaining hands are upright columns at the sides either way.
      */
     private CardSlot<BridgeGame, BridgeMenu> seatSlot(int seat) {
         // Clamped exactly like {@link #getLocalSeat}: before the player is seated the raw seat is
         // negative, and an unclamped comparison here would quietly build the local hand as a spectator
         // slot — no drag, no HandSlot.
         int localSeat = Math.max(0, this.game.getSeat(this.getCardPlayer()));
-        CardSlot.Type type = handType(this.game.compass(seat));
+        CardSlot.Type type = handType(this.game.viewCompass(seat, localSeat));
         if (seat == localSeat) {
             return new HandSlot<>(
                     this.game,
@@ -184,14 +205,30 @@ public class BridgeMenu extends AbstractCardMenu<BridgeGame, BridgeMenu> {
     /**
      * North and south read as a fan along the top and bottom bars; west and east as a side column.
      *
-     * <p>Keyed on the <em>compass</em> rather than the seat: which way a hand is drawn is a fact about
-     * the chair its player is in, not about where the seat happens to fall in Charta's rotated roster.
+     * <p>Keyed on the <em>drawn</em> compass for the local viewer rather than the seat's real one, so
+     * the local player's own hand is a fan in front of them and never a column down the side; see
+     * {@link BridgeGame#viewCompass}.
      */
-    private static CardSlot.Type handType(int compass) {
-        return switch (Math.floorMod(compass, BridgeGame.PLAYERS)) {
+    private static CardSlot.Type handType(int viewCompass) {
+        return switch (Math.floorMod(viewCompass, BridgeGame.PLAYERS)) {
             case 0, 2 -> CardSlot.Type.HORIZONTAL;
             default -> CardSlot.Type.VERTICAL;
         };
+    }
+
+    /**
+     * High card points in the local player's own hand: ace 4, king 3, queen 2, jack 1.
+     *
+     * <p>Read from the real hand rather than from the slot the viewer sees, because for the local player
+     * those are the same cards either way -- and reading the slot would go through the censored-hand
+     * branch, which hands a <em>different</em> player's cards back as blank card backs.
+     *
+     * <p>Only ever shown against the local player's name plate: the other three hands are hidden, so a
+     * count beside them would be a guess dressed up as a number.
+     */
+    public int getLocalPoints() {
+        CardPlayer player = getPlayerAtSeat(getLocalSeat());
+        return player == null ? 0 : BridgeBidding.highCardPoints(player.hand());
     }
 
     /** Slot index of a hand element, or {@code -1} if the layout hands the menu an unknown element. */

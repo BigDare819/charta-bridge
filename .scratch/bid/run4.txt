@@ -1,0 +1,39 @@
+﻿OK   balanced 15 opens 1NT -> 1NT
+OK   five card major before a longer minor -> 1S
+OK   weak two on a six card suit -> 2S
+OK   22 points is a strong 2C -> 2C
+OK   better minor -> 1D
+OK   seven card suit and 10 points pre-empts -> 3D
+OK   responder names the four card major -> 1S
+OK   a fit and 11 points reaches game -> 4H
+OK   a single raise is not forced to game -> 2H
+OK   transfer, completion, then game -> 4H
+OK   29 combined is not a grand slam -> 3NT
+OK   a partscore deal stays low -> 1NT
+SCRIPTED-TRACE
+N(14) 1H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 2NT   J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 3H    7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 4H    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) 4NT   7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+S(13) 5D    J95 KQJ2 T96 AQ8
+W( 6) Pass  73 952 JT98 AJ52
+N(14) Pass  7 AQ863 KJ4 A952
+E( 3) Pass  T42 T863 7532 K7
+OK   an overcall is made -> 1S
+OK   the opening is raised -> 3H
+OK   a takeout double of a minor opening -> X
+EASY    400 deals | passout   2 | 7-level   0 (  0.0%) | 6-level   3 | 5-level  61 | 3-4 level 134 | 1-2 level 200
+NORMAL  400 deals | passout   5 | 7-level   0 (  0.0%) | 6-level   6 | 5-level  36 | 3-4 level 166 | 1-2 level 187
+HARD    400 deals | passout   5 | 7-level   0 (  0.0%) | 6-level   6 | 5-level  45 | 3-4 level 161 | 1-2 level 183
+
+checks = 1247, failures = 3
+
+FAILED: Jacoby 2NT reaches game: wanted 4H, got 5D after 1H Pass 2NT Pass 3H Pass 4H Pass 4NT Pass 5D Pass Pass Pass
+FAILED: a strong fit with controls reaches a slam: wanted at least 6, got 5D after 1S Pass 3S Pass 4NT Pass 5D Pass Pass Pass
+FAILED: and the overcall is raised too: wanted 3S, got Pass after 1H 1S 3H (seat W)
