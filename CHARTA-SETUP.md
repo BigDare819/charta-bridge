@@ -88,6 +88,7 @@ Remove-Item -Recurse -Force D:\deepseekharness\charta-BigA\runs
 两个工程的 `deploy` 默认落到 `D:/PCL2/.minecraft/versions/1.21.1-Fabric 0.19.5/mods`，
 可用 `-Ppcl2ModsDir=...` 覆盖。`deploy` 会先删掉同前缀旧 jar，所以**别手工 copy**——
 新旧名字交替时容易留两份，游戏会同时加载（坑 7、坑 20）。
+**换成原子改名而不是原地覆盖**，因为"游戏正在跑/正在启动时部署"会把 jar 写坏（坑 90）。
 
 ---
 
@@ -686,7 +687,34 @@ new AutoPlayer(intelligence);                                      // shouldComp
     * 自测世界放 `runs/client/saves/New`：`runs/` 被 gitignore，但**想留世界就只留 `saves`**，其余
       （logs/config/downloads/mods）删掉（4.2）。
 
+90. **`deploy` 必须"先写临时名再原子改名"，不能原地覆盖 jar** ⚠️ — 症状极具误导性：游戏在
+    `Initializing game` 阶段崩，崩溃报告的头是**本工程**的入口点（
+    `Could not execute entrypoint stage 'main' ... provided by 'bridge' at 'dev.bridge.BridgeMod'`），
+    但真正的 `Caused by` 是
+    `java.util.zip.ZipException: ZipFile invalid LOC header (bad signature)`，而且报的是**另一个 addon 的类**
+    （实测是 `dev.myavalon.client.CardSlotAccess`）。看起来像 bridge 崩了，其实是**别人的 jar 损坏**，
+    只是 bridge 是较早跑到的入口点、且它引用了那个 jar 里的类型（`BridgeMod` 第 94 行的 lambda 解析时触发加载）。
+    * **机理**：`ZipFile` 在打开压缩包的一瞬间把**中心目录**缓存下来，之后按里面记的偏移去读每个条目。
+      而 `tasks.register('deploy', Copy)` 的 `Copy` 是**先把目标截断再写**（同 inode 原地重写）：
+      游戏已经打开 jar → 部署把文件截断重写 → 缓存里的偏移全部失效 → **之后每一次从该 jar 读类都报
+      `invalid LOC header`**。所以"边部署边启动/已在跑时部署"必炸，且只在启动后十几秒、被读到那个类时才炸。
+    * **修法**：拷到同目录的 `xxx.jar.staged`，再 `Files.move(..., REPLACE_EXISTING, ATOMIC_MOVE)`
+      （失败退化到普通 move）。改名是瞬间的，读方要么看到旧 inode 要么看到新 inode，永远看不到半个文件；
+      `.staged` 后缀不会被 loader 当 mod 扫到。`charta-bridge` 和 `MyAvalon` 的 `deploy` 都按这个写法。
+    * **排查入口**：先 `unzip -t *.jar` 扫一遍 mods 目录（本目录 6 个 jar 全量扫一遍只要一秒），
+      `BAD`/`No errors detected` 一眼分明；再看 `mods/*.jar` 的 **mtime 是否落在崩溃时间附近** —— 那是铁证。
+      注意 `unzip -t` 在**部署完成之后**跑必然是 OK 的，所以"现在测得没问题"不能否掉这个诊断。
+
 ## 8. 变更记录
+
+- **2026-10-08 修复：`deploy` 原地覆盖 jar 会把正在运行的游戏写崩**（反馈「直接崩溃了」）。崩溃报告头是
+  bridge 的入口点，但 `Caused by` 是 `ZipException: ZipFile invalid LOC header (bad signature)`、且报的是
+  `dev.myavalon.client.CardSlotAccess` —— 真正的受害者是**另一个 addon 的 jar**：它的 `deploy` 在
+  `22:07` 落地，游戏 `22:07:22` 启动、`22:07:36` 崩，jar 的 mtime 正好压在崩溃时间上（铁证）。机理是
+  `Copy` 先把目标截断再写，而 `ZipFile` 打开时缓存了中心目录，缓存里的偏移随文件被重写全部失效。
+  两个工程的 `deploy` 都改成"拷成 `xxx.jar.staged` → `Files.move(ATOMIC_MOVE)`"，读方只会看到旧或新、
+  不会看到半个文件（坑 90）。事后 `unzip -t` 扫过 mods 全部 6 个 jar（含 bridge/myavalon）均无损，
+  破坏是瞬时的、重开即可。这轮只动 `build.gradle` 的 deploy 与文档，mod 代码零改动。
 
 - **2026-10-08 桥牌：解算器性能优化，最坏局面 20.2s → 3.9s**（需求「你再优化一下代码，提高性能」）。只动
   `BridgeDoubleDummy` 和它的离线 A/B 工具，**玩法、播报文案、选项布局一概不变**，全部改动都以"节点数是否

@@ -121,23 +121,46 @@ processResources {
 // ---------------------------------------------------------------------------
 // One-shot deploy into the PCL2 instance so the jar never has to be copied by
 // hand. `gradlew build deploy`, or just `gradlew deploy` (it builds first).
+//
+// The swap is atomic (stage next to the target, then move it into place) rather
+// than a plain overwrite, because a plain overwrite is not safe against a game
+// that is already running or starting: `ZipFile` caches the archive's central
+// directory when it opens the jar, so truncating-and-rewriting the file under a
+// live loader leaves every later class read with
+// "ZipException: invalid LOC header (bad signature)" -- which surfaces as a
+// crash inside whichever addon's entrypoint happens to touch that jar first, not
+// as a crash in the jar that was rewritten. See CHARTA-SETUP.md pitfall 90.
 // ---------------------------------------------------------------------------
-tasks.register('deploy', Copy) {
+tasks.register('deploy') {
     group = 'bridge'
-    description = 'Builds the mod and copies it into the PCL2 1.21.1-Fabric instance.'
+    description = 'Builds the mod and swaps it into the PCL2 1.21.1-Fabric instance.'
     dependsOn tasks.named('build')
 
     def instanceMods = providers.gradleProperty('pcl2ModsDir')
             .orElse('D:/PCL2/.minecraft/versions/1.21.1-Fabric 0.19.5/mods')
             .get()
 
-    from tasks.named('remapJar').flatMap { it.archiveFile }
-    into instanceMods
-    // Drop any stale copy of a previous name so the instance never loads two bridges.
-    doFirst { logger.lifecycle("Deploying to ${instanceMods}") }
     doLast {
+        def src = tasks.named('remapJar').get().archiveFile.get().asFile
+        def dir = new File(instanceMods)
+        dir.mkdirs()
+        def dst = new File(dir, src.name)
+        // ".staged" so the loader ignores the half-written file on the way past.
+        def staged = new File(dir, src.name + '.staged')
+        java.nio.file.Files.copy(src.toPath(), staged.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        try {
+            java.nio.file.Files.move(staged.toPath(), dst.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+        } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+            java.nio.file.Files.move(staged.toPath(), dst.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        }
+        logger.lifecycle("Deployed ${src.name} to ${dir}")
+        // Drop any stale copy of a previous name so the instance never loads two bridges.
         fileTree(instanceMods).matching { include "${mod_id}-fabric-*.jar" }.each { f ->
-            if (f.name != tasks.named('remapJar').get().archiveFile.get().asFile.name) {
+            if (f.name != dst.name) {
                 logger.lifecycle("Removing stale ${f.name}")
                 f.delete()
             }
