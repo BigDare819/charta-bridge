@@ -1012,7 +1012,7 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
                     BridgeLayout.Element.STATUS_TURN);
         }
 
-        boolean declaring = Math.floorMod(localSeat - menu.getDeclarerSeat(), 2) == 0;
+        boolean declaring = declaringSide();
         // "Ours" and "theirs" rather than "declarer" and "defenders": for a defender the two numbers
         // used to be handed over in exactly this order while the wording stayed declarer-first, so the
         // defending side read their own tricks under the declarer's label and vice versa. A side is
@@ -1022,13 +1022,38 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         Component progress = menu.getContract() == 0
                 ? Component.translatable("message.bridge.progress_no_contract", ours, theirs)
                 : Component.translatable("message.bridge.progress",
-                        ours, menu.getRequiredTricks(), theirs);
+                        ours, localTarget(), theirs);
         drawStatusLine(guiGraphics, progress, BridgeLayout.Element.STATUS_PROGRESS);
 
         if (menu.getGame().isShowingTrickCount()) {
             drawStatusLine(guiGraphics, Component.translatable("message.bridge.tricks",
                     menu.getTrickNumber() + 1, BridgeGame.TRICKS), BridgeLayout.Element.STATUS_TRICKS);
         }
+    }
+
+    /** Whether the local seat is on the declaring side; measured by parity, as the score line does. */
+    private boolean declaringSide() {
+        return Math.floorMod(menu.getLocalSeat() - menu.getDeclarerSeat(), 2) == 0;
+    }
+
+    /**
+     * Tricks the local side still needs, i.e. what the number under "ours" in
+     * {@link #renderPlayStatus} counts up to.
+     *
+     * <p>Only meaningful with a contract on the table. The declaring side needs the contract's level;
+     * the defenders need the <em>set</em>, which is one trick more than the declaration is short of --
+     * "13 minus the declaration's requirement, plus the one the declarer must fall short by". Handing
+     * the declarer's number to both was the bug: defending a 5-level contract (11 needed) printed
+     * "ours 0/11" while the defenders only ever need three.
+     */
+    private int localTarget() {
+        int required = menu.getRequiredTricks();
+        if (required <= 0) {
+            // Passed out: nothing to make and nothing to set, so the only honest denominator is the
+            // board itself. The parity test cannot mean anything either, declarerSeat being -1.
+            return BridgeGame.TRICKS;
+        }
+        return declaringSide() ? required : BridgeGame.TRICKS - required + 1;
     }
 
     private void renderResult(@NotNull GuiGraphics guiGraphics) {
@@ -1062,12 +1087,14 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
                     top + 36);
         }
         // Same our-side / their-side framing as the live progress line, so the final count reads the
-        // same way it did all board.
-        boolean declaringSide = Math.floorMod(menu.getLocalSeat() - menu.getDeclarerSeat(), 2) == 0;
-        int ours = declaringSide ? menu.getDeclarerTricks() : menu.getDefenderTricks();
-        int theirs = declaringSide ? menu.getDefenderTricks() : menu.getDeclarerTricks();
-        drawCentered(guiGraphics, Component.translatable("message.bridge.progress",
-                ours, menu.getRequiredTricks(), theirs), top + 47);
+        // same way it did all board -- including the target, which is a set when we were defending.
+        boolean declaring = declaringSide();
+        int ours = declaring ? menu.getDeclarerTricks() : menu.getDefenderTricks();
+        int theirs = declaring ? menu.getDefenderTricks() : menu.getDeclarerTricks();
+        Component finalLine = menu.getContract() == 0
+                ? Component.translatable("message.bridge.progress_no_contract", ours, theirs)
+                : Component.translatable("message.bridge.progress", ours, localTarget(), theirs);
+        drawCentered(guiGraphics, finalLine, top + 47);
     }
 
     // ------------------------------------------------------------------- editor ---

@@ -262,15 +262,22 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     private int trickWinnerSeat = -1;
 
     /**
-     * Hand the carried card was picked up from, or {@code null} when nothing is being carried.
+     * Which hand each carried card was lifted out of, keyed by the player carrying it.
      *
      * <p>A carried card has already left its hand, so putting it down into a <em>different</em> hand
      * would leave that hand one card too big. Tracking the origin is what lets a hand slot refuse it and
      * makes the pile the only way to get rid of a card — which is the whole of "the dummy's cards must
-     * not end up in the declarer's hand". Server-side only: the client never runs the insert.
+     * not end up in the declarer's hand", and, read the other way round in {@link #canPlay}, of "the
+     * declarer must play out of the hand that is on turn rather than out of their own".
+     *
+     * <p>Per player rather than one field: four humans routinely have two cards off two fans at the same
+     * time, and a single origin gets overwritten by whoever lifted last — leaving the first player unable
+     * to play their card <em>and</em> unable to put it back. Identity keys because {@code BridgeBot} has
+     * a lopsided {@code equals} and these are long-lived mixin-backed instances.
+     *
+     * <p>Server-side only: the client never runs the insert.
      */
-    @Nullable
-    private CardPlayer pickupOwner;
+    private final Map<CardPlayer, CardPlayer> liftedFrom = new java.util.IdentityHashMap<>();
 
     @Nullable
     private Suit ledSuit;
@@ -594,6 +601,12 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         return isDummy(owner) && getSeat(player) == declarerSeat;
     }
 
+    /** The hand {@code player}'s carried card came out of, or {@code null} while they carry nothing. */
+    @Nullable
+    private CardPlayer liftedFrom(@Nullable CardPlayer player) {
+        return player == null ? null : liftedFrom.get(player);
+    }
+
     /** Wraps a bot identity check that has to work on the client too, where they are plain AutoPlayers. */
     private static boolean isBot(@Nullable CardPlayer player) {
         return player instanceof BridgeBot || (player != null && player.getEntity() == null);
@@ -682,7 +695,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
      * of cards on the pile is rejected because a play is exactly one card.
      *
      * <p>The gate on putting a card back into the <em>wrong</em> hand lives here too; see
-     * {@link HandSlot} and {@link #pickupOwner}.
+     * {@link HandSlot} and {@link #liftedFrom}.
      */
     @Override
     protected GameSlot createPlayerHand(CardPlayer player) {
@@ -740,7 +753,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         trickNumber = 0;
         trickLeaderSeat = -1;
         trickWinnerSeat = -1;
-        pickupOwner = null;
+        liftedFrom.clear();
         awaitingPlay = false;
         // Every play future is replaced below, so nothing the previous board registered can still be
         // considered current.
@@ -1017,7 +1030,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
                 trickLeaderSeat = actorSeat;
                 trickWinnerSeat = -1;
             }
-            pickupOwner = null;
+            liftedFrom.clear();
 
             // Bots have no menu, so their card has to be moved by hand. A real player's card already
             // travelled hand -> carried -> pile through the slot click payload, whether it came out of
@@ -1218,12 +1231,25 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             return false;
         }
 
-        // The card has to come out of the acting seat's hand, i.e. the dummy's when the dummy is on
-        // turn. A real player's card sits in their carried slot by now, so that counts too.
+        // The card has to come out of the hand of the seat that is *on turn*, never the actor's: while
+        // the dummy is on turn those are two different players, and the whole of "the dummy's cards are
+        // played by the declarer" is this one indirection. A card the actor has already clicked is out
+        // of its hand and sitting in their carried slot by the time this runs, so a lifted card counts
+        // too -- but only when it was lifted out of <em>that</em> hand, which is what {@link #liftedFrom}
+        // remembers per carrier. Without the origin check the declarer can play a dummy card on their own
+        // turn: it is in the carried slot, so it passes, and the trick then books it to the declarer's
+        // seat while the card physically left the dummy, leaving the dummy a card short for the rest of
+        // the board.
         CardPlayer owner = playerAt(seat);
         boolean fromOwner = getPlayerHand(owner).stream().anyMatch(held -> held.equals(card));
-        if (!fromOwner && getFullHand(player).noneMatch(held -> held.equals(card))) {
-            return false;
+        if (!fromOwner) {
+            boolean lifted = getFullHand(player).anyMatch(held -> held.equals(card));
+            // A null origin means the lifted card is not ours to attribute (the client mirror never runs
+            // the pickup), so it is let through there rather than refused on a bookkeeping gap.
+            CardPlayer origin = liftedFrom(player);
+            if (!lifted || (origin != null && origin != owner)) {
+                return false;
+            }
         }
 
         // Follow suit when able to.
@@ -1527,6 +1553,19 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         dev.bridge.BridgeMod.LOGGER.info("double dummy: {} by {} -> {}/{}{}", contract.getString(),
                 declarer.getString(), tricks, required, approximate ? " (capped)" : "");
         table(line);
+        // ...and to the chat proper. table() only reaches Charta's LOCAL_HISTORY, i.e. the history panel
+        // behind the small button, whereas sendMessage is displayClientMessage -- the chat line a player
+        // actually reads, and one that outlives the board screen. A post-mortem is read after the fact,
+        // so the panel it was filed under was the wrong surface for it.
+        for (CardPlayer player : players) {
+            player.sendMessage(line);
+        }
+        if (findServer() == null) {
+            // No server anywhere: the players above are client-side, where sendMessage is a no-op (see
+            // BridgeClient.chat). Reached on the dev screen only, since the production client leaves the
+            // announcing to its server.
+            dev.bridge.BridgeClient.chat(line);
+        }
     }
 
     /** The logical server behind this table, or {@code null} on the client's mirror of the game. */
@@ -1700,8 +1739,15 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
 
         @Override
         public void onRemove(CardPlayer player, List<Card> cards, int index) {
-            game.pickupOwner = owner;
+            game.liftedFrom.put(player, owner);
             super.onRemove(player, cards, index);
+        }
+
+        @Override
+        public void onInsert(CardPlayer player, List<Card> cards, int index) {
+            // Put down again, so there is nothing left to attribute.
+            game.liftedFrom.remove(player);
+            super.onInsert(player, cards, index);
         }
 
         @Override
@@ -1709,8 +1755,8 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             // A card lifted out of the dummy belongs to the dummy; dropping it back on the declarer's
             // own fan would leave the declarer holding fourteen cards. Making the other hand refuse it
             // leaves the card in hand, and the pile is then the only place it can go.
-            return game.canHandleHand(player, owner)
-                    && (game.pickupOwner == null || game.pickupOwner == owner);
+            CardPlayer origin = game.liftedFrom(player);
+            return game.canHandleHand(player, owner) && (origin == null || origin == owner);
         }
 
         /** Nobody gets to lift a card out of a hand they do not play; see {@link #canHandleHand}. */
