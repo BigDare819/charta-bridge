@@ -210,13 +210,13 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
     }
 
     // Auction table geometry, relative to the popup's own top-left corner. The table is a grid: a
-    // header row of call ordinals over four seat rows, so "which call number is this" and "who made
+    // header row of column numbers over four seat rows, so "where in the auction is this" and "who made
     // it" line up as a row and a column instead of having to be read out of a running sentence.
     private static final int TABLE_HEAD_TOP = 18;
     private static final int TABLE_HEAD_H = 10;
     private static final int TABLE_TOP = TABLE_HEAD_TOP + TABLE_HEAD_H;
     private static final int TABLE_ROW_H = 12;
-    /** Left edge of the first round column; the compass label owns everything to the left of it. */
+    /** Left edge of the first column; the compass label owns everything to the left of it. */
     private static final int CALL_X = 26;
     /** Round pitch: one column, wide enough for the longest thing a cell can hold, {@code pass}. */
     private static final int CALL_COL_W = 27;
@@ -559,22 +559,23 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
     }
 
     /**
-     * One header row of round numbers over one row per seat, each call centred in the cell its seat
-     * and its round cross at.
+     * One header row of column numbers over one row per seat, each call centred in the cell its seat
+     * and its place in the column cross at.
      *
-     * <h2>Why a column is a whole round</h2>
+     * <h2>How a column is filled</h2>
      *
-     * <p>A call is not a useful unit to number: four seats call before the auction comes back round to
-     * anyone, so "call number 7" is a count nobody keeps. A column here is one <em>round</em> of four
-     * calls. That also makes the grid exactly one call per (seat, round) cell -- every seat calls once
-     * per round -- so no cell can ever have to hold two things side by side.
+     * <p>The first column starts on the row of whoever opened -- the dealer -- and runs <em>down</em>.
+     * The moment it reaches the bottom row the column is done, and the next call opens the following
+     * column back at the top. So a column is not a fixed four calls: the opening column is short by
+     * however far down the dealer sits, and every column after it is full. Anchoring the wrap at the
+     * bottom is what makes the record read top to bottom like a list, rather than leaving the dealer's
+     * first calls stranded at the top of a column that is otherwise empty until the auction comes round.
      *
-     * <h2>Why the window is pinned to the last round</h2>
+     * <h2>Why the window is pinned to the last column</h2>
      *
-     * <p>An auction can run to a dozen rounds and no fixed-width panel fits them all, so what is shown
-     * is the tail. Anchoring at the end rather than the start means the number in the header is the
-     * real round number, the newest call is always on screen, and nothing already read shifts sideways
-     * when the next call lands.
+     * <p>An auction can run long and no fixed-width panel fits it all, so what is shown is the tail.
+     * Anchoring at the end rather than the start means the newest call is always on screen and nothing
+     * already read shifts sideways when the next call lands.
      *
      * <p>The four rows are in compass order -- north, east, south, west -- and not rotated per viewer,
      * so every player reads the same grid in the same order with their own row marked "you".
@@ -582,21 +583,22 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
     private void renderAuctionTable(GuiGraphics guiGraphics, Auction auction) {
         int width = BridgeMenu.PANEL_WIDTH;
         int columns = callColumns();
-        int rounds = (auction.size() + BridgeGame.PLAYERS - 1) / BridgeGame.PLAYERS;
-        int firstRound = Math.max(0, rounds - columns);
+        int firstRow = auctionFirstRow(auction);
+        int total = auctionColumnCount(auction);
+        int firstColumn = Math.max(0, total - columns);
         int columnW = Math.round(CALL_COL_W * popupScale());
 
         for (int column = 0; column < columns; column++) {
-            int round = firstRound + column;
-            if (round >= rounds) {
+            int page = firstColumn + column;
+            if (page >= total) {
                 break;
             }
-            Component ordinal = Component.literal(Integer.toString(round + 1));
-            // The current round is picked out, since with a windowed grid it is the one thing that says
+            Component ordinal = Component.literal(Integer.toString(page + 1));
+            // The last column is picked out, since with a windowed grid it is the one thing that says
             // where in the auction you are.
             guiGraphics.drawString(font, ordinal, callColumnX(column) + (columnW - font.width(ordinal)) / 2,
                     inPopupY(TABLE_HEAD_TOP),
-                    round == rounds - 1 ? ACTIVE : DIM_COLOR, true);
+                    page == total - 1 ? ACTIVE : DIM_COLOR, true);
         }
         guiGraphics.fill(inPopupX(3), inPopupY(TABLE_TOP - 1), inPopupX(width - 3),
                 inPopupY(TABLE_TOP - 1) + 1, OUTLINE);
@@ -615,24 +617,57 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
             guiGraphics.drawString(font, label, inPopupX(6), y + 2, active ? 0xFF202020 : LABEL_COLOR, true);
         }
 
-        // One pass over the visible tail. A call's round is its index divided by the table size, and the
-        // four calls of a round always belong to four different seats, so nothing can collide.
-        for (int index = firstRound * BridgeGame.PLAYERS; index < auction.size(); index++) {
-            int column = index / BridgeGame.PLAYERS - firstRound;
-            if (column >= columns) {
+        // One pass over the visible tail. The fill rule fixes which seat is at (column, row), so only
+        // the call index has to be derived; the empty cells above a short opening column fall out of
+        // the index being out of range.
+        for (int column = 0; column < columns; column++) {
+            int page = firstColumn + column;
+            if (page >= total) {
                 break;
             }
-            int seat = Math.floorMod(auction.seatOf(index), BridgeGame.PLAYERS);
-            int y = inPopupY(TABLE_TOP + compass(seat) * TABLE_ROW_H);
-            Component call = bidLabel(auction.code(index));
-            // The glyphs are pasted at native size and centred on the same line-box row as the 8 px
-            // vanilla digits, so +2 gives the call line the identical baseline as the seat label.
-            guiGraphics.drawString(font, call, callColumnX(column) + (columnW - bidWidth(auction.code(index))) / 2,
-                    y + 2, LABEL_COLOR, true);
+            for (int row = 0; row < BridgeGame.PLAYERS; row++) {
+                int index = auctionIndexAt(firstRow, page, row);
+                if (index < 0 || index >= auction.size()) {
+                    continue;
+                }
+                int seat = Math.floorMod(auction.seatOf(index), BridgeGame.PLAYERS);
+                int y = inPopupY(TABLE_TOP + compass(seat) * TABLE_ROW_H);
+                Component call = bidLabel(auction.code(index));
+                // The glyphs are pasted at native size and centred on the same line-box row as the 8 px
+                // vanilla digits, so +2 gives the call line the identical baseline as the seat label.
+                guiGraphics.drawString(font, call,
+                        callColumnX(column) + (columnW - bidWidth(auction.code(index))) / 2,
+                        y + 2, LABEL_COLOR, true);
+            }
         }
     }
 
-    /** How many round columns fit between the label gutter and the panel's inner edge. */
+    /**
+     * Compass row the record starts on: the opening caller's, i.e. the dealer's.
+     *
+     * <p>{@code 0} for an empty auction. Rows run clockwise with the seats (see {@code computeCompass}),
+     * so "start on the dealer's row and count down" is the same seat order the auction was called in.
+     */
+    private int auctionFirstRow(Auction auction) {
+        return auction.size() == 0 ? 0 : compass(Math.floorMod(auction.seatOf(0), BridgeGame.PLAYERS));
+    }
+
+    /** Columns the auction needs: a short opening one down to the bottom row, then full ones. */
+    private int auctionColumnCount(Auction auction) {
+        int opening = BridgeGame.PLAYERS - auctionFirstRow(auction);
+        int size = auction.size();
+        return size <= opening ? 1 : 1 + (size - opening + BridgeGame.PLAYERS - 1) / BridgeGame.PLAYERS;
+    }
+
+    /** Call index sitting at {@code (page, row)}, or {@code -1} for a cell above a short opening column. */
+    private int auctionIndexAt(int firstRow, int page, int row) {
+        if (page == 0) {
+            return row < firstRow ? -1 : row - firstRow;
+        }
+        return (BridgeGame.PLAYERS - firstRow) + (page - 1) * BridgeGame.PLAYERS + row;
+    }
+
+    /** How many call columns fit between the label gutter and the panel's inner edge. */
     private static int callColumns() {
         return Math.max(1, (BridgeMenu.PANEL_WIDTH - CALL_X - CALL_RIGHT) / CALL_COL_W);
     }
@@ -642,13 +677,15 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         return inPopupX(CALL_X + column * CALL_COL_W);
     }
 
-    /** The bidding box: seven levels down the side, five strains across, pass/double/redouble below. */
+    /** The bidding box: seven levels up the side, five strains across, pass/double/redouble below. */
     private void renderBiddingBox(GuiGraphics guiGraphics, Auction auction, int mouseX, int mouseY) {
         boolean myTurn = menu.canCallNow();
         int seat = menu.getLocalSeat();
 
         for (int row = 0; row < LEVEL_ROWS; row++) {
-            int level = BridgeBid.MAX_LEVEL - row;
+            // One level per row, lowest at the top so the box builds up to the grand slam at the bottom
+            // -- the way the bids are read out, and the way the record below fills downwards.
+            int level = row + 1;
             for (int column = 0; column < STRAIN_COLUMNS; column++) {
                 int call = BridgeBid.code(level, column);
                 drawCallButton(guiGraphics, BOX_X + column * CELL_W, BOX_Y + row * CELL_H,
@@ -1412,7 +1449,7 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         int row = (y - BOX_Y) / CELL_H;
         if (column >= 0 && column < STRAIN_COLUMNS && row >= 0 && row < LEVEL_ROWS
                 && x >= BOX_X && y >= BOX_Y) {
-            return BridgeBid.code(BridgeBid.MAX_LEVEL - row, column);
+            return BridgeBid.code(row + 1, column);
         }
 
         int passX = (BridgeMenu.PANEL_WIDTH - (PASS_W * 3 + 4)) / 2 + 1;
