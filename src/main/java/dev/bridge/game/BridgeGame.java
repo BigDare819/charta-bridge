@@ -283,6 +283,15 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     private Suit ledSuit;
     private int trickNumber;
 
+    /**
+     * Whether the dummy's hand is face up yet.
+     *
+     * <p>False through the whole auction: before the opening lead the defenders are choosing blind, so
+     * the dummy's cards are still backs. The opening lead turns them over, which is the moment the
+     * dummy actually "comes down" in bridge, rather than the moment the auction ends.
+     */
+    private boolean dummyExposed;
+
     private int resultScore;
     @Nullable
     private Boolean resultMade;
@@ -703,15 +712,17 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
     }
 
     /**
-     * The dummy's hand is face up in front of everybody.
+     * The dummy's hand is face up in front of everybody -- but only once the opening lead is on the
+     * table; see {@link #dummyExposed}.
      *
      * <p>The menu's preview slots ask for a censored hand, so overriding this for the dummy is all it
      * takes for every viewer to be pushed real cards — the server computes the slot contents and ships
-     * them, so the client needs nothing extra.
+     * them, so the client needs nothing extra. Flipping {@code dummyExposed} is picked up by the menu's
+     * own {@code broadcastChanges}, which diffs the slot against what it last sent.
      */
     @Override
     public GameSlot getCensoredHand(@Nullable CardPlayer viewer, CardPlayer player) {
-        if (phase != Phase.DEALING && isDummy(player) && hands.containsKey(player)) {
+        if (dummyExposed && isDummy(player) && hands.containsKey(player)) {
             return getPlayerHand(player);
         }
         return super.getCensoredHand(viewer, player);
@@ -751,6 +762,7 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         tricksTaken.clear();
         ledSuit = null;
         trickNumber = 0;
+        dummyExposed = false;
         trickLeaderSeat = -1;
         trickWinnerSeat = -1;
         liftedFrom.clear();
@@ -972,10 +984,11 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
         phase = Phase.PLAY;
         table(Component.translatable("message.bridge.contract", contractName(), playerAt(declarerSeat).getColoredName()));
         if (auction.doubling() > 0) {
-            table(Component.translatable(auction.doubling() == 2
-                    ? "message.bridge.redoubled_note" : "message.bridge.doubled_note"));
+        table(Component.translatable(auction.doubling() == 2
+                ? "message.bridge.redoubled_note" : "message.bridge.doubled_note"));
         }
-        table(Component.translatable("message.bridge.dummy_is", playerAt(getDummySeat()).getColoredName()));
+        // The dummy is named later, when the opening lead actually turns their hand over; see the play
+        // callback. Announcing it here would promise a face-up hand that is still backs.
 
         // The contract, the trump and the opening leader are all final the instant the auction ends and
         // not a moment before, so this is as early as the solve can possibly be kicked off. Doing it
@@ -1029,6 +1042,16 @@ public class BridgeGame extends Game<BridgeGame, BridgeMenu> {
             if (currentTrick.isEmpty()) {
                 trickLeaderSeat = actorSeat;
                 trickWinnerSeat = -1;
+                if (trickNumber == 0) {
+                    // The opening lead, i.e. the very first card of the board. This is what turns the
+                    // dummy face up; the auction itself leaves it hidden. A passed-out board has no
+                    // dummy at all (getDummySeat is -1), so there is nothing to turn over or name.
+                    dummyExposed = true;
+                    if (getDummySeat() >= 0) {
+                        table(Component.translatable("message.bridge.dummy_is",
+                                playerAt(getDummySeat()).getColoredName()));
+                    }
+                }
             }
             liftedFrom.clear();
 

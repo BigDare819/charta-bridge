@@ -45,7 +45,10 @@
 # does not move -- until its brightest channel reaches PEAK. The suit glyph is then drawn
 # untinted, so what ends up on screen is these exact colours.
 #
-# nt.png is the notrump glyph, drawn here rather than sourced, in 1 px strokes.
+# nt.png is the notrump glyph, drawn here rather than sourced, in 1 px strokes. It is
+# currently unused: font/suit.json no longer declares it, because a bitmap "NT" rasterised
+# at the suits' 12 px cell reads as a stretched smear next to a vanilla-font rank digit.
+# The art is kept so it is one line to put back if that ever changes.
 
 Add-Type -AssemblyName System.Drawing
 

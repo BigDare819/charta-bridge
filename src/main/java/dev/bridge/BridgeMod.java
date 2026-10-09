@@ -72,9 +72,10 @@ public class BridgeMod implements ModInitializer {
     public static final ResourceLocation GAME_ID = id("contract_bridge");
 
     /**
-     * Font holding the four suit symbols and {@code NT}, used for everything the auction and the
-     * contract are written with. The glyphs are white and get tinted with the deck's own suit colour,
-     * so a bid reads exactly like the played-card messages do.
+     * Font holding the four suit symbols, used for everything the auction and the contract are written
+     * with. The glyphs are white and get tinted with the deck's own suit colour, so a bid reads exactly
+     * like the played-card messages do. Notrump has no glyph in here and falls through to the vanilla
+     * font as the plain letters {@code NT}; see {@code BridgeBid#glyph}.
      */
     public static final Style SUITS = Style.EMPTY.withFont(id("suit"));
 

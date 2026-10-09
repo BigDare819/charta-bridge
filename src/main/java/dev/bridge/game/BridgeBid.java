@@ -87,10 +87,10 @@ public final class BridgeBid {
      * A call as text: {@code Pass}, {@code X}, {@code XX}, or a level followed by the suit symbol.
      *
      * <p>The level digit comes from the vanilla font that {@code bridge:suit} falls through to and the
-     * symbol from {@code bridge:suit} itself, so the two share a baseline. The symbol is left untinted:
-     * unlike the played-card messages, which colour a card's <em>name</em> after the deck, the suit
-     * sprites carry their own colour (see {@code tools/make-suit-font.ps1}) and a tint on top of it
-     * would just muddy them.
+     * symbol from {@code bridge:suit} itself, so the two share a baseline — and, for notrump, share a
+     * font as well. The symbol is left untinted: unlike the played-card messages, which colour a card's
+     * <em>name</em> after the deck, the suit sprites carry their own colour (see
+     * {@code tools/make-suit-font.ps1}) and a tint on top of it would just muddy them.
      */
     public static Component name(int code) {
         if (code == PASS) {
@@ -109,7 +109,7 @@ public final class BridgeBid {
      * Just the strain part, e.g. {@code ♥} or {@code NT}.
      *
      * <p>The sprite carries its own colour, so nothing here is tinted after the deck; that is why this
-     * takes only a code.
+     * takes only a code. Notrump has no sprite, see {@link #glyph}.
      */
     public static Component symbol(int code) {
         return Component.literal(glyph(strain(code))).withStyle(BridgeMod.SUITS);
@@ -118,7 +118,7 @@ public final class BridgeBid {
     /**
      * A call as plain ASCII, for logs: {@code Pass}, {@code X}, {@code XX}, {@code 4H}, {@code 3NT}.
      *
-     * <p>{@link #name} is built for the screen and carries the private-use notrump glyph, which a console
+     * <p>{@link #name} is built for the screen and carries the private-use suit sprites, which a console
      * renders as a tofu box. Same information, no font.
      */
     public static String label(int code) {
@@ -137,13 +137,21 @@ public final class BridgeBid {
     /** Strain names for {@link #label}, indexed by strain. */
     private static final String[] STRAIN_LABELS = {"C", "D", "H", "S", "NT"};
 
-    /** The glyph for a strain, in the {@code bridge:suit} font. */
-    public static String glyph(int strain) {        return switch (strain) {
+    /**
+     * The glyph for a strain, in the {@code bridge:suit} font.
+     *
+     * <p>Notrump is the two plain letters {@code NT} rather than a sprite: {@code bridge:suit} has no
+     * glyph for them, so they fall through to the vanilla font, at the same size and weight as the
+     * level digit beside them. A bitmap {@code NT} was tried and read as a stretched smear because it
+     * has to be rasterised at the suit sprite's height while the letters want a wider box.
+     */
+    public static String glyph(int strain) {
+        return switch (strain) {
             case 0 -> "\u2663";   // clubs
             case 1 -> "\u2666";   // diamonds
             case 2 -> "\u2665";   // hearts
             case 3 -> "\u2660";   // spades
-            default -> "\uE000";  // notrump
+            default -> "NT";      // notrump, in the vanilla font
         };
     }
 
