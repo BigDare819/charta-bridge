@@ -900,7 +900,7 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
     // ------------------------------------------------------------------- seats ---
 
     /**
-     * Name plates pinned to the hands, plus the dummy highlight.
+     * Name plates pinned to the hands.
      *
      * <p>Pinned to the <em>hand</em>: the plate box comes off the same rotated compass the fan is drawn
      * with ({@link #handCompass}), so a name always sits with the cards it belongs to. The wording stays
@@ -911,7 +911,6 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
         for (int seat = 0; seat < BridgeGame.PLAYERS; seat++) {
             drawSeatLabel(guiGraphics, seat);
         }
-        highlightDummy(guiGraphics, menu.getDummySeat(), menu.getCurrentSeat());
     }
 
     private void drawSeatLabel(GuiGraphics guiGraphics, int seat) {
@@ -952,17 +951,6 @@ public class BridgeScreen extends GameScreen<BridgeGame, BridgeMenu> {
             guiGraphics.fill(left + 2, y + plateHeight - 1, left + plateWidth, y + plateHeight, 0xFF000000 | color);
         }
         guiGraphics.drawString(font, text, left + 6, y + 2, active ? ACTIVE : LABEL_COLOR, true);
-    }
-
-    /** A yellow frame around the dummy's cards, brighter while it is the dummy's turn. */
-    private void highlightDummy(GuiGraphics guiGraphics, int dummySeat, int currentSeat) {
-        if (dummySeat < 0) {
-            return;
-        }
-        BridgeLayout.Element element = BridgeLayout.hand(handCompass(dummySeat));
-        int[] box = LAYOUT.bounds(element, width, height);
-        int color = dummySeat == currentSeat ? 0xFFFFE97F : 0x66FFE97F;
-        frame(guiGraphics, box[0] - 1, box[1] - 1, box[2] + 2, box[3] + 2, color);
     }
 
     // ------------------------------------------------------------------- phases ---
