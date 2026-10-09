@@ -1,6 +1,6 @@
 package dev.bridge.mixin;
 
-import dev.bridge.game.BridgeScreen;
+import dev.bridge.client.BridgeFrame;
 import dev.lucaargolo.charta.client.render.screen.GameScreen;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ChatComponent;
@@ -34,8 +34,16 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * {@code translate(0, -25)} and the chat-width squeeze still run where they always did; only the draw
  * moves.
  *
- * <p>The handler is an instance method purely so the {@code instanceof} guard can keep Charta's own
- * games -- which share {@code GameScreen.render} and have no frame -- rendering their chat here.
+ * <h2>Why the guard is a frame check and not an {@code instanceof BridgeScreen}</h2>
+ *
+ * <p>A sibling addon redirects this very instruction, and Mixin keeps the higher priority copy and skips
+ * the other — so this copy may be the one running for the other addon's screen too. {@link
+ * BridgeFrame#isFramedScreen} therefore recognises every framed screen on the table, and each framed
+ * screen paints its own chat after popping the pose. A plain {@code instanceof} would leave the sibling
+ * screen with both its in-frame chat and its own copy, drawn at different scales.
+ *
+ * <p>The handler is an instance method purely so the guard can keep Charta's own games -- which share
+ * {@code GameScreen.render} and have no frame -- rendering their chat here.
  */
 @Mixin(GameScreen.class)
 public abstract class GameScreenChatFrame {
@@ -46,7 +54,7 @@ public abstract class GameScreenChatFrame {
                     target = "Lnet/minecraft/client/gui/components/ChatComponent;render(Lnet/minecraft/client/gui/GuiGraphics;IIIZ)V"))
     private void bridge$chatOutsideFrame(ChatComponent chat, GuiGraphics guiGraphics,
                                          int ticks, int mouseX, int mouseY, boolean focused) {
-        if (!(((Object) this) instanceof BridgeScreen)) {
+        if (!BridgeFrame.isFramedScreen(this)) {
             chat.render(guiGraphics, ticks, mouseX, mouseY, focused);
         }
     }

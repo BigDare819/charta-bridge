@@ -1,7 +1,6 @@
 package dev.bridge.mixin;
 
 import dev.bridge.client.BridgeFrame;
-import dev.bridge.game.BridgeScreen;
 import dev.lucaargolo.charta.client.render.screen.GameScreen;
 import net.minecraft.client.MouseHandler;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,8 +33,16 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * window coordinates. The pose lives in {@code BridgeScreen}, so the conversion has to be conditional
  * or every other card table would get a mis-scaled hover tilt. A {@code @Redirect} handler may be
  * non-static, in which case it keeps the mixin's {@code this} -- and that is the object the guard
- * needs. The cast through {@code Object} exists because the mixin class and {@code BridgeScreen} are
- * unrelated types to the compiler.
+ * needs.
+ *
+ * <h2>Why the guard is a frame check and not an {@code instanceof BridgeScreen}</h2>
+ *
+ * <p>A sibling addon redirects this very instruction, and Mixin keeps the higher priority copy and skips
+ * the other -- so this copy may be the one running for the other addon's screen too. Every addon's frame
+ * is the same 640x360 design mapped the same way, so the conversion is identical and {@link
+ * BridgeFrame#isFramedScreen} deliberately recognises all of them. A plain {@code instanceof} would leave
+ * the sibling screen with a raw window mouse in {@code containerTick}, i.e. a hover tilt magnified by
+ * {@code 1/scale}.
  */
 @Mixin(GameScreen.class)
 public abstract class GameScreenFrameTick {
@@ -45,7 +52,7 @@ public abstract class GameScreenFrameTick {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/MouseHandler;xpos()D"))
     private double bridge$frameMouseX(MouseHandler mouseHandler) {
         double raw = mouseHandler.xpos();
-        return ((Object) this) instanceof BridgeScreen ? BridgeFrame.tickX(raw) : raw;
+        return BridgeFrame.isFramedScreen(this) ? BridgeFrame.tickX(raw) : raw;
     }
 
     @Redirect(
@@ -53,6 +60,6 @@ public abstract class GameScreenFrameTick {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/MouseHandler;ypos()D"))
     private double bridge$frameMouseY(MouseHandler mouseHandler) {
         double raw = mouseHandler.ypos();
-        return ((Object) this) instanceof BridgeScreen ? BridgeFrame.tickY(raw) : raw;
+        return BridgeFrame.isFramedScreen(this) ? BridgeFrame.tickY(raw) : raw;
     }
 }

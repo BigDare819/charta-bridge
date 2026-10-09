@@ -1,5 +1,6 @@
 package dev.bridge.client;
 
+import dev.bridge.game.BridgeScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
@@ -108,6 +109,43 @@ public final class BridgeFrame {
         float scale = Mth.clamp(Math.min(guiWidth / (float) WIDTH, guiHeight / (float) HEIGHT),
                 MIN_SCALE, MAX_SCALE);
         return new BridgeFrame(scale, (guiWidth - WIDTH * scale) / 2f, (guiHeight - HEIGHT * scale) / 2f);
+    }
+
+    // ------------------------------------------------------------------ framed screens ---
+
+    /**
+     * Whether {@code screen} paints inside a design frame, and so needs the two things a frame cannot
+     * carry: its chat moved outside the pose, and its tick mouse converted.
+     *
+     * <h2>Why a name check for a foreign screen</h2>
+     *
+     * <p>Charta addons that frame their screen all frame it the same way — same 640x360 design, same
+     * uniform scale, same centring — so one addon's conversion is exactly right for another addon's
+     * screen. What is <em>not</em> shared is the Java type, and taking a compile dependency on a
+     * sibling addon would make each of them unbuildable without the other. So the sibling screen is
+     * matched by class name, and the superclass walk covers the day one of them gains a subclass.
+     *
+     * <h2>Why it has to know about the siblings at all</h2>
+     *
+     * <p>Two addons that redirect the same instruction — the chat call, the {@code MouseHandler.xpos()}
+     * in {@code containerTick} — do not both run. Mixin keeps the higher priority config and skips the
+     * other, so the surviving copy has to serve <em>every</em> framed screen on the table, not just this
+     * addon's own. A copy that only recognises its own type leaves the other addon's screen with a raw
+     * window mouse and a doubled, mis-scaled chat on whichever launch this addon happens to outrank it.
+     */
+    public static boolean isFramedScreen(Object screen) {
+        if (screen instanceof BridgeScreen) {
+            return true;
+        }
+        for (Class<?> type = screen.getClass(); type != null; type = type.getSuperclass()) {
+            switch (type.getName()) {
+                case "dev.biga.game.BigAScreen":
+                case "dev.myavalon.game.AvalonScreen":
+                    return true;
+                default:
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ frame <-> window ---
